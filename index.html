@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com; img-src 'self' data: blob:;" />
+
+  <!-- SEO -->
+  <title>NatureGuard — AI-Powered Carbon Footprint Tracker</title>
+  <meta name="description" content="Understand, track, and reduce your carbon footprint with personalized AI coaching. Log daily activities, see real-time CO₂ impact, and get smart action plans." />
+  <meta name="keywords" content="carbon footprint, sustainability, climate, CO2, eco tracker, AI coach" />
+  <meta name="author" content="NatureGuard" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="NatureGuard — AI-Powered Carbon Footprint Tracker" />
+  <meta property="og:description" content="Your personal AI climate coach. Track, understand, and reduce your carbon footprint." />
+  <meta property="og:image" content="/og-image.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="NatureGuard" />
+  <meta name="twitter:description" content="AI-powered carbon footprint tracker with personalized coaching." />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#09100C" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/css/reset.css" />
+  <link rel="stylesheet" href="/css/design-tokens.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/views.css" />
+</head>
+<body>
+
+  <!-- Skip to main content (accessibility) -->
+  <a href="#main-content" class="skip-to-content">Skip to content</a>
+
+  <!-- App Shell -->
+  <div id="app">
+
+    <!-- Top Bar (shown when authenticated) -->
+    <header id="top-bar" role="banner" aria-label="NatureGuard top bar" hidden>
+      <div class="logo" aria-label="NatureGuard">
+        <span class="logo-leaf" aria-hidden="true">🌿</span>
+        <span class="logo-text">Nature<span>Guard</span></span>
+      </div>
+      <div id="top-bar-actions"></div>
+    </header>
+
+    <!-- Desktop Sidebar Navigation -->
+    <nav id="sidebar" role="navigation" aria-label="Main navigation" hidden>
+      <div class="logo" style="margin-bottom: 32px;">
+        <span class="logo-leaf" aria-hidden="true">🌿</span>
+        <span class="logo-text">Nature<span>Guard</span></span>
+      </div>
+      <div id="sidebar-nav-items"></div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="main-content" role="main">
+      <!-- Views are rendered here dynamically by the router -->
+    </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav id="bottom-nav" role="navigation" aria-label="Bottom navigation" hidden>
+      <!-- Rendered by navigation module -->
+    </nav>
+
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;" aria-hidden="true"></canvas>
+
+  <!-- App Entry Point -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
