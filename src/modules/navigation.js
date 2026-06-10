@@ -17,6 +17,23 @@ const NAV_ITEMS = [
 export function renderNavigation(user) {
   renderBottomNav();
   renderSidebar(user);
+  renderTopBar(user);
+}
+
+function renderTopBar(user) {
+  const actions = document.getElementById('top-bar-actions');
+  if (!actions) return;
+  
+  const initials = getInitials(user?.user_metadata?.display_name || user?.email || '?');
+  actions.innerHTML = `
+    <button class="avatar-btn" data-route="#settings" aria-label="Settings" style="border:none; background:none; cursor:pointer; padding:0;">
+      <div class="avatar avatar-sm">${initials}</div>
+    </button>
+  `;
+  
+  actions.querySelector('.avatar-btn').addEventListener('click', () => {
+    router.navigate('#settings');
+  });
 }
 
 function renderBottomNav() {
