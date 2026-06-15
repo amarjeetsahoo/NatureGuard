@@ -243,6 +243,7 @@
 .toast-success { border-color: rgba(163,230,53,0.3); }
 .toast-error   { border-color: rgba(248,113,113,0.3); }
 .toast-info    { border-color: rgba(45,212,191,0.3); }
+.toast-badge   { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.08); min-width: 260px; }
 .toast-icon    { font-size: 18px; flex-shrink: 0; }
 
 /* ── Loading Spinner ── */

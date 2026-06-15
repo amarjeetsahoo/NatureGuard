@@ -110,6 +110,41 @@ export async function getTodayActivities() {
   return getActivities({ from: today.toISOString(), limit: 200 });
 }
 
+/**
+ * Get activities for the PRIOR equivalent period (for delta comparison).
+ * - 'week'  → previous Mon–Sun
+ * - 'month' → previous calendar month
+ * - 'today' → yesterday
+ * @param {'week'|'month'|'today'} period
+ */
+export async function getPriorPeriodActivities(period) {
+  const now = new Date();
+
+  if (period === 'today') {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const endOfYesterday = new Date(yesterday);
+    endOfYesterday.setHours(23, 59, 59, 999);
+    return getActivities({ from: yesterday.toISOString(), to: endOfYesterday.toISOString(), limit: 200 });
+  }
+
+  if (period === 'month') {
+    const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastOfLastMonth  = new Date(firstOfThisMonth.getTime() - 1);
+    return getActivities({ from: firstOfLastMonth.toISOString(), to: lastOfLastMonth.toISOString(), limit: 500 });
+  }
+
+  // Default: 'week' → previous Mon–Sun
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+  const prevMonday = new Date(monday.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const prevSunday = new Date(monday.getTime() - 1);
+  return getActivities({ from: prevMonday.toISOString(), to: prevSunday.toISOString(), limit: 500 });
+}
+
 /** Delete an activity by ID. */
 export async function deleteActivity(id) {
   const user = await getCurrentUser();
@@ -178,7 +213,7 @@ export async function getWeeklyDigest(weekStart) {
     .select('*')
     .eq('user_id', user.id)
     .eq('week_start', weekStart)
-    .single();
+    .maybeSingle();
 }
 
 /** Save a weekly digest. */

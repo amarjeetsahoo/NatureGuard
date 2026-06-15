@@ -45,7 +45,10 @@ export async function signInWithMagicLink(email) {
 
 /** Sign out the current user. */
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  // Use 'local' scope to clear only the local session token.
+  // This avoids a 403 from Supabase's global logout endpoint while
+  // still correctly signing out the user on this device.
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
   return { error };
 }
 

@@ -3,13 +3,15 @@
  * The home screen. Shows CO₂ totals, charts, score ring, and streaks.
  */
 
-import { getWeekActivities, getMonthActivities, getTodayActivities, getProfile } from '../modules/db.js';
+import { getWeekActivities, getMonthActivities, getTodayActivities, getProfile, getPriorPeriodActivities } from '../modules/db.js';
 import {
   totalCO2, breakdownByCategory, getDailyTotals, getBenchmark, vsAverage,
 } from '../modules/calculator.js';
 import { calculateScore, getGrade, getScoreColor, ringOffset, getScoreLabel } from '../modules/score.js';
 import { formatCO2, humanize, treesEquivalent } from '../modules/humanizer.js';
 import { router } from '../router.js';
+import { eventBus, EVENTS } from '../modules/eventBus.js';
+import { BADGE_DEFS } from '../modules/streak.js';
 
 const CATEGORY_META = {
   transport: { icon: '🚗', label: 'Transport', color: '#F59E0B' },
@@ -33,6 +35,8 @@ export async function render(container) {
             <button class="period-btn"        data-period="month" aria-pressed="false">Month</button>
             <button class="period-btn"        data-period="today" aria-pressed="false">Today</button>
           </div>
+          <button id="btn-share" class="btn btn-secondary" style="padding:6px 12px;font-size:13px;border-radius:20px;" aria-label="Share Dashboard">Share 📸</button>
+
         </div>
       </div>
 
@@ -97,6 +101,11 @@ export async function render(container) {
         </div>
       </div>
 
+      <!-- Streak & Badges -->
+      <div class="card" id="streak-card" style="margin-bottom:16px;">
+        <div class="skeleton skeleton-text" style="height:60px;border-radius:8px;"></div>
+      </div>
+
       <!-- Quick Log FAB -->
       <button
         id="quick-log-fab"
@@ -127,8 +136,73 @@ export async function render(container) {
     router.navigate('#log');
   });
 
+  // Share Dashboard
+  container.querySelector('#btn-share').addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-share');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Generating...';
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const target = container.querySelector('#dashboard-view');
+      
+      const canvas = await html2canvas(target, {
+        backgroundColor: '#09100C', // Match var(--bg-base)
+        scale: 2, // Higher quality
+        ignoreElements: (element) => {
+          // Hide FAB and share button itself in the screenshot
+          if (element.id === 'quick-log-fab' || element.id === 'btn-share') return true;
+          return false;
+        }
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) throw new Error('Canvas conversion failed');
+        
+        try {
+          // Try to copy to clipboard (works on modern desktop browsers)
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          
+          import('../utils/toast.js').then(({ toastSuccess }) => {
+            toastSuccess('Dashboard copied to clipboard! 📸');
+          });
+        } catch (clipErr) {
+          console.warn('Clipboard write failed, falling back to download', clipErr);
+          // Fallback to download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `natureguard-footprint-${new Date().toISOString().split('T')[0]}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          import('../utils/toast.js').then(({ toastSuccess }) => {
+            toastSuccess('Dashboard saved as image! 📸');
+          });
+        }
+      }, 'image/png');
+      
+    } catch (err) {
+      console.error('Error generating screenshot', err);
+      import('../utils/toast.js').then(({ toastError }) => {
+        toastError('Failed to capture dashboard.');
+      });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  });
+
+
   // Load initial data
   await loadData(container, 'week');
+
+  // Live streak updates (unsubscribe handle stored so router cleanup works)
+  container._unsubStreak = setupStreakListener(container);
 }
 
 async function loadData(container, period) {
@@ -138,49 +212,74 @@ async function loadData(container, period) {
   const greetingEl = container.querySelector('#dash-greeting');
   if (greetingEl) greetingEl.textContent = greeting;
 
-  // Fetch activities based on period
-  let activitiesResult;
-  if (period === 'today') activitiesResult = await getTodayActivities();
-  else if (period === 'month') activitiesResult = await getMonthActivities();
-  else activitiesResult = await getWeekActivities();
+  // Fetch current + prior period activities in parallel
+  let activitiesResult, priorResult;
+  if (period === 'today') {
+    [activitiesResult, priorResult] = await Promise.all([getTodayActivities(), getPriorPeriodActivities('today')]);
+  } else if (period === 'month') {
+    [activitiesResult, priorResult] = await Promise.all([getMonthActivities(), getPriorPeriodActivities('month')]);
+  } else {
+    [activitiesResult, priorResult] = await Promise.all([getWeekActivities(), getPriorPeriodActivities('week')]);
+  }
 
-  const activities = activitiesResult.data || [];
+  const activities  = activitiesResult.data || [];
+  const priorActivities = priorResult?.data || [];
 
   // Fetch profile for country/settings
   const { data: profile } = await getProfile();
   const country = profile?.country || 'global';
 
   // Calculate totals
-  const total = totalCO2(activities);
-  const breakdown = breakdownByCategory(activities);
-  const score = calculateScore(period === 'month' ? total / 4 : total, country);
-  const grade = getGrade(score);
+  const total      = totalCO2(activities);
+  const priorTotal = totalCO2(priorActivities);
+  const breakdown  = breakdownByCategory(activities);
+  const score      = calculateScore(period === 'month' ? total / 4 : total, country);
+  const grade      = getGrade(score);
   const scoreColor = getScoreColor(score);
-  const benchmark = getBenchmark(country);
-  const vsAvg = vsAverage(period === 'month' ? total / 4 : total, country);
-  const comps = humanize(total);
+  const benchmark  = getBenchmark(country);
+  const vsAvg      = vsAverage(period === 'month' ? total / 4 : total, country);
+  const comps      = humanize(total);
+
+  // Compute period-over-period delta
+  // positive delta = more CO2 than prior (bad), negative = less (good)
+  let periodDelta = null;
+  if (priorTotal > 0) {
+    periodDelta = ((total - priorTotal) / priorTotal) * 100;
+  }
 
   // Render stats
-  renderStats(container, { total, score, vsAvg, benchmark, period, comps, activities });
+  renderStats(container, { total, score, vsAvg, benchmark, period, comps, activities, periodDelta });
 
   // Render score ring
   renderScoreRing(container, score, grade, scoreColor);
 
-  // Render charts
-  await renderCharts(container, breakdown, activities, period);
+  // Render charts (pass priorActivities for the trend delta badge)
+  await renderCharts(container, breakdown, activities, period, periodDelta);
 
   // Render breakdown list
   renderBreakdown(container, breakdown, total);
+
+  // Render streak card
+  renderStreakCard(container, profile);
 }
 
-function renderStats(container, { total, score, vsAvg, benchmark, period, comps, activities }) {
+function renderStats(container, { total, score, vsAvg, benchmark, period, comps, activities, periodDelta }) {
   const periodLabel = period === 'today' ? "Today's" : period === 'week' ? "This Week's" : "This Month's";
-  const avgWeekly = benchmark;
+  const priorLabel  = period === 'today' ? 'vs yesterday' : period === 'week' ? 'vs last week' : 'vs last month';
 
-  const deltaVsAvg = vsAvg - 100;
-  const deltaIcon = deltaVsAvg <= 0 ? '↓' : '↑';
-  const deltaClass = deltaVsAvg <= 0 ? 'down' : 'up';
-  const deltaText = `${Math.abs(deltaVsAvg).toFixed(0)}% vs avg`;
+  // Period-over-period delta (preferred — actual data comparison)
+  let deltaIcon, deltaClass, deltaText;
+  if (periodDelta !== null) {
+    deltaIcon  = periodDelta <= 0 ? '↓' : '↑';
+    deltaClass = periodDelta <= 0 ? 'down' : 'up';
+    deltaText  = `${Math.abs(periodDelta).toFixed(0)}% ${priorLabel}`;
+  } else {
+    // Fallback: vs global average (first period, no prior data)
+    const deltaVsAvg = vsAvg - 100;
+    deltaIcon  = deltaVsAvg <= 0 ? '↓' : '↑';
+    deltaClass = deltaVsAvg <= 0 ? 'down' : 'up';
+    deltaText  = `${Math.abs(deltaVsAvg).toFixed(0)}% vs avg`;
+  }
 
   container.querySelector('#stats-grid').innerHTML = `
     <div class="card stat-card animate-fadeInUp">
@@ -236,7 +335,7 @@ function renderScoreRing(container, score, grade, color) {
   if (labelEl)  labelEl.textContent = getScoreLabel(score);
 }
 
-async function renderCharts(container, breakdown, activities, period) {
+async function renderCharts(container, breakdown, activities, period, periodDelta = null) {
   // Lazy-load Chart.js
   const { Chart } = await import('chart.js/auto');
 
@@ -279,9 +378,23 @@ async function renderCharts(container, breakdown, activities, period) {
     });
   }
 
-  // Trend line chart
+  // Trend line chart — use full period days
   const days = period === 'today' ? 1 : period === 'month' ? 30 : 7;
-  const dailyData = getDailyTotals(activities, Math.min(days, 14));
+  const dailyData = getDailyTotals(activities, days);
+
+  // Render trend-delta badge
+  const trendDeltaEl = container.querySelector('#trend-delta');
+  if (trendDeltaEl) {
+    if (periodDelta !== null) {
+      const isGood = periodDelta <= 0;
+      trendDeltaEl.textContent = `${isGood ? '↓' : '↑'} ${Math.abs(periodDelta).toFixed(0)}%`;
+      trendDeltaEl.className   = `badge ${isGood ? 'badge-lime' : 'badge-red'}`;
+      trendDeltaEl.title       = `${isGood ? 'Less' : 'More'} CO₂ than prior ${period === 'today' ? 'day' : period}`;
+    } else {
+      trendDeltaEl.textContent = 'No prior data';
+      trendDeltaEl.className   = 'badge badge-muted';
+    }
+  }
 
   const trendCanvas = container.querySelector('#trend-chart');
   if (trendCanvas) {
@@ -366,4 +479,72 @@ function skeletonStatCard() {
       <div class="skeleton skeleton-text-sm" style="width:50%;"></div>
     </div>
   `;
+}
+
+// ── Streak & Badges Card ──────────────────────────────────────────────────────
+
+function renderStreakCard(container, profile) {
+  const card = container.querySelector('#streak-card');
+  if (!card) return;
+
+  const streak  = profile?.current_streak  || 0;
+  const longest = profile?.longest_streak  || 0;
+  const badges  = profile?.badges          || [];
+
+  // Build badge icons from defs (show which are earned vs locked)
+  const badgeHTML = BADGE_DEFS.map(def => {
+    const earned = badges.find(b => b.key === def.key);
+    return `
+      <div
+        title="${def.title}: ${def.desc}"
+        style="
+          display:flex;flex-direction:column;align-items:center;gap:4px;
+          opacity:${earned ? '1' : '0.25'};
+          transition:opacity 0.3s;
+          cursor:default;
+        "
+      >
+        <span style="font-size:22px;">${def.icon}</span>
+        <span style="font-size:9px;color:var(--text-muted);text-align:center;max-width:44px;line-height:1.2;">${def.title}</span>
+      </div>
+    `;
+  }).join('');
+
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 style="font-size:15px;font-weight:600;">Streak & Badges</h2>
+      ${streak > 0 ? `<span class="badge badge-amber">🔥 ${streak} day${streak !== 1 ? 's' : ''}</span>` : ''}
+    </div>
+
+    <!-- Streak stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div style="text-align:center;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:12px;">
+        <div style="font-family:var(--font-display);font-size:28px;color:var(--accent-amber);line-height:1;">${streak}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em;">Current 🔥</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:12px;">
+        <div style="font-family:var(--font-display);font-size:28px;color:var(--accent-purple);line-height:1;">${longest}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em;">Best 🏆</div>
+      </div>
+    </div>
+
+    <!-- Badges row -->
+    <div style="display:flex;gap:16px;justify-content:space-around;flex-wrap:wrap;">
+      ${badgeHTML}
+    </div>
+
+    ${badges.length === 0 ? `
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px;">
+        Log activities daily to unlock badges! 🌱
+      </p>
+    ` : ''}
+  `;
+}
+
+// Live-update streak card when an activity is logged on this page
+export function setupStreakListener(container) {
+  return eventBus.on(EVENTS.STREAK_UPDATED, async () => {
+    const { data: profile } = await (await import('../modules/db.js')).getProfile();
+    renderStreakCard(container, profile);
+  });
 }

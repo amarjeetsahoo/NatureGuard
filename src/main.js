@@ -7,12 +7,24 @@ import { supabase } from './auth/supabaseClient.js';
 import { onAuthChange, getCurrentSession } from './auth/authService.js';
 import { router } from './router.js';
 import { renderNavigation } from './modules/navigation.js';
-import { initToasts } from './utils/toast.js';
+import { initToasts, toastSuccess } from './utils/toast.js';
 import { getProfile } from './modules/db.js';
 import { geminiService } from './ai/geminiService.js';
+import { eventBus, EVENTS } from './modules/eventBus.js';
+import { onActivityLogged } from './modules/streak.js';
+import { confettiBurst } from './utils/confetti.js';
 
 async function boot() {
   initToasts();
+
+  // Register Service Worker for PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js').catch(err => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
 
   // 1. Check for an existing session IMMEDIATELY on load
   const existingSession = await getCurrentSession();
@@ -46,6 +58,35 @@ async function boot() {
   // 3. Handle browser back/forward navigation
   window.addEventListener('hashchange', () => {
     router.navigate(location.hash);
+  });
+
+  // 4. Streak engine — fires whenever any view logs an activity
+  eventBus.on(EVENTS.ACTIVITY_LOGGED, async () => {
+    const { newStreak, newBadges } = await onActivityLogged();
+    // Refresh streak display in nav
+    eventBus.emit(EVENTS.STREAK_UPDATED, { streak: newStreak });
+  });
+
+  // 5. Badge earned — show a special toast + confetti
+  eventBus.on(EVENTS.BADGE_EARNED, (badge) => {
+    confettiBurst();
+    // Show a styled badge toast
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'toast toast-badge';
+    el.innerHTML = `
+      <span class="toast-icon" style="font-size:24px;">${badge.icon}</span>
+      <div>
+        <div style="font-weight:700;font-size:14px;">Badge Unlocked!</div>
+        <div style="font-size:12px;color:var(--text-secondary);">${badge.title} — ${badge.desc}</div>
+      </div>
+    `;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('removing');
+      el.addEventListener('animationend', () => el.remove());
+    }, 4000);
   });
 }
 

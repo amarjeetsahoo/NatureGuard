@@ -49,4 +49,9 @@ Format your response as a JSON array of objects:
 export const WHAT_IF_PROMPT = `You are a hypothetical scenario simulator. The user is asking "What if I...".
 Parse their request and return a JSON object containing the scenario parameters so the calculator engine can estimate the impact.
 Format:
-{"category": "transport|food|energy|shopping|travel", "new_value": number, "unit": "km|serving|kWh|item", "description": "Brief summary of the scenario"}`;
+{"category": "transport|food|energy|shopping|travel", "subtype_hint": "e.g. electric_car, vegan_meal, bus", "new_value": number, "unit": "km|serving|kWh|item", "description": "Brief summary of the scenario"}`;
+
+export const ONBOARDING_EXTRACTION_PROMPT = `You are a data extractor. Read the conversation transcript between the AI and the user.
+Extract the user's lifestyle profile and return a JSON object exactly matching this structure:
+{"diet_type": "omnivore|vegetarian|vegan", "vehicle_type": "petrol_avg|electric|hybrid|bus|train|cycling", "commute_km": number_in_km}
+If a value is not mentioned or unclear, make a best guess based on the context, or use the defaults (omnivore, petrol_avg, 10).`;

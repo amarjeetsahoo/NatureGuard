@@ -14,12 +14,14 @@ const routes = {
   '#coach':      () => import('./views/coach.js'),
   '#actions':    () => import('./views/actions.js'),
   '#insights':   () => import('./views/insights.js'),
+  '#whatif':     () => import('./views/whatif.js'),
   '#settings':   () => import('./views/settings.js'),
   '#onboarding': () => import('./views/onboarding.js'),
+  '#404':        () => import('./views/notFound.js'),
 };
 
 // Routes that require authentication
-const privateRoutes = new Set(['#dashboard', '#log', '#coach', '#actions', '#insights', '#settings', '#onboarding']);
+const privateRoutes = new Set(['#dashboard', '#log', '#coach', '#actions', '#insights', '#whatif', '#settings', '#onboarding']);
 
 const main = document.getElementById('main-content');
 
@@ -27,15 +29,20 @@ export const router = {
   currentRoute: null,
 
   async navigate(hash) {
-    const route = hash.split('?')[0] || '#landing';
+    let route = hash.split('?')[0] || '#landing';
 
     // Auth guard for private routes
     if (privateRoutes.has(route)) {
-      const allowed = await authGuard();
+      const allowed = await authGuard(route);
       if (!allowed) return;
     }
 
+    if (!routes[route] && route !== '') {
+        route = '#404';
+    }
+
     const loader = routes[route] || routes['#landing'];
+
 
     try {
       const { render } = await loader();

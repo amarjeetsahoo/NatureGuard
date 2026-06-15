@@ -107,9 +107,13 @@ class GeminiService {
   /**
    * Generate standard text response.
    */
-  async generate(prompt, systemInstruction = null, temperature = 0.7) {
+  async generate(promptOrHistory, systemInstruction = null, temperature = 0.7) {
+    const contents = Array.isArray(promptOrHistory) 
+      ? promptOrHistory 
+      : [{ role: 'user', parts: [{ text: promptOrHistory }] }];
+
     const body = {
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents,
       generationConfig: { temperature }
     };
 

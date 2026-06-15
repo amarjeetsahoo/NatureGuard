@@ -5,6 +5,8 @@
 
 import { router } from '../router.js';
 import { getInitials } from '../utils/dom.js';
+import { eventBus, EVENTS } from './eventBus.js';
+import { getProfile } from './db.js';
 
 const NAV_ITEMS = [
   { route: '#dashboard', icon: '⊞',  label: 'Dashboard',  emoji: '🏠' },
@@ -12,6 +14,7 @@ const NAV_ITEMS = [
   { route: '#coach',     icon: 'AI',  label: 'AI Coach',    emoji: '🤖' },
   { route: '#actions',   icon: '⚡',  label: 'Actions',     emoji: '💡' },
   { route: '#insights',  icon: '📊',  label: 'Insights',    emoji: '📊' },
+  { route: '#whatif',    icon: '?',   label: 'What-If',     emoji: '🔮' }
 ];
 
 export function renderNavigation(user) {
@@ -26,6 +29,7 @@ function renderTopBar(user) {
   
   const initials = getInitials(user?.user_metadata?.display_name || user?.email || '?');
   actions.innerHTML = `
+    <div id="streak-pill" style="display:none;align-items:center;gap:4px;padding:4px 10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:9999px;font-size:12px;font-weight:600;color:var(--accent-amber);"></div>
     <button class="avatar-btn" data-route="#settings" aria-label="Settings" style="border:none; background:none; cursor:pointer; padding:0;">
       <div class="avatar avatar-sm">${initials}</div>
     </button>
@@ -34,6 +38,25 @@ function renderTopBar(user) {
   actions.querySelector('.avatar-btn').addEventListener('click', () => {
     router.navigate('#settings');
   });
+
+  // Load streak from profile and show pill
+  getProfile().then(({ data: profile }) => {
+    updateStreakPill(profile?.current_streak || 0);
+  });
+
+  // Subscribe to STREAK_UPDATED to refresh pill live
+  eventBus.on(EVENTS.STREAK_UPDATED, ({ streak }) => updateStreakPill(streak));
+}
+
+function updateStreakPill(streak) {
+  const pill = document.getElementById('streak-pill');
+  if (!pill) return;
+  if (streak > 0) {
+    pill.style.display = 'flex';
+    pill.textContent = `🔥 ${streak}`;
+  } else {
+    pill.style.display = 'none';
+  }
 }
 
 function renderBottomNav() {
