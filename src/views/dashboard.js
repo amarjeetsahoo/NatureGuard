@@ -12,6 +12,7 @@ import { formatCO2, humanize, treesEquivalent } from '../modules/humanizer.js';
 import { router } from '../router.js';
 import { eventBus, EVENTS } from '../modules/eventBus.js';
 import { BADGE_DEFS } from '../modules/streak.js';
+import { showLoader, hideLoader } from '../utils/loader.js';
 
 const CATEGORY_META = {
   transport: { icon: '🚗', label: 'Transport', color: '#F59E0B' },
@@ -19,6 +20,7 @@ const CATEGORY_META = {
   energy:    { icon: '⚡', label: 'Energy',    color: '#2DD4BF' },
   shopping:  { icon: '🛍️', label: 'Shopping',  color: '#A78BFA' },
   travel:    { icon: '✈️', label: 'Travel',    color: '#F87171' },
+  other:     { icon: '✨', label: 'Other',     color: '#9CA3AF' },
 };
 
 export async function render(container) {
@@ -46,12 +48,12 @@ export async function render(container) {
       </div>
 
       <!-- Score Ring + Main Chart -->
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:16px;" id="main-charts">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:16px;align-items:stretch;" id="main-charts">
         <!-- Score Ring -->
-        <div class="card score-ring-container" style="min-width:180px;">
+        <div class="card score-ring-container" style="min-width:180px; justify-content:center;">
           <p style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">Eco Score</p>
           <div class="score-ring-wrap" id="score-ring-wrap">
-            <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+            <svg width="100%" height="100%" viewBox="0 0 140 140" aria-hidden="true">
               <circle cx="70" cy="70" r="45" fill="none" stroke="var(--bg-elevated)" stroke-width="10"/>
               <circle
                 id="score-ring-fill"
@@ -74,11 +76,13 @@ export async function render(container) {
         </div>
 
         <!-- Category Donut -->
-        <div class="card chart-card" style="padding:20px;">
+        <div class="card chart-card" style="padding:20px; display:flex; flex-direction:column;">
           <div class="chart-card-header">
             <h2 class="chart-card-title">By Category</h2>
           </div>
-          <canvas id="donut-chart" height="160" aria-label="CO₂ breakdown by category"></canvas>
+          <div style="position:relative; width:100%; height:230px; margin:auto 0;">
+            <div id="donut-chart" style="width:100%; height:100%;"></div>
+          </div>
         </div>
       </div>
 
@@ -136,7 +140,7 @@ export async function render(container) {
     router.navigate('#log');
   });
 
-  // Share Dashboard
+  // Share Dashboard (Certificate Generation)
   container.querySelector('#btn-share').addEventListener('click', async () => {
     const btn = container.querySelector('#btn-share');
     btn.disabled = true;
@@ -145,17 +149,90 @@ export async function render(container) {
     
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const target = container.querySelector('#dashboard-view');
+      const stats = container._currentStats;
+      if (!stats) throw new Error('Data not loaded');
+
+      // Create a beautiful, solid-color certificate node
+      const certNode = document.createElement('div');
+      certNode.style.position = 'absolute';
+      certNode.style.left = '-9999px';
+      certNode.style.top = '-9999px';
+      certNode.style.width = '800px';
+      certNode.style.background = '#09100C'; // Solid dark mode background
+      certNode.style.color = '#F4F9F5';
+      certNode.style.fontFamily = 'Inter, sans-serif';
+      certNode.style.padding = '60px';
+      certNode.style.boxSizing = 'border-box';
       
-      const canvas = await html2canvas(target, {
-        backgroundColor: '#09100C', // Match var(--bg-base)
-        scale: 2, // Higher quality
-        ignoreElements: (element) => {
-          // Hide FAB and share button itself in the screenshot
-          if (element.id === 'quick-log-fab' || element.id === 'btn-share') return true;
-          return false;
-        }
+      const userName = stats.profile?.display_name || 'Climate Champion';
+      const scoreColor = stats.score >= 80 ? '#A3E635' : stats.score >= 60 ? '#FBBF24' : '#F87171';
+      
+      certNode.innerHTML = `
+        <div style="border: 2px solid rgba(163, 230, 53, 0.2); border-radius: 24px; padding: 40px; background: #0c140f;">
+          <!-- Header -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+            <div style="display:flex; align-items:center; gap:8px; font-size:24px; font-weight:700;">
+              <span style="color:#A3E635;">🌿</span>
+              <span>Nature<span style="color:#A3E635;">Guard</span></span>
+            </div>
+            <div style="font-size:14px; color:#9ca3af; font-family:'JetBrains Mono', monospace;">
+              OFFICIAL SUSTAINABILITY REPORT
+            </div>
+          </div>
+
+          <!-- Title -->
+          <div style="text-align:center; margin-bottom: 50px;">
+            <h1 style="font-size:42px; font-family:'DM Serif Display', serif; margin:0 0 8px 0; color:#A3E635;">Sustainability Certificate</h1>
+            <p style="font-size:18px; color:#d1d5db; margin:0;">Proudly awarded to <strong>${userName}</strong></p>
+          </div>
+
+          <!-- Metrics Grid -->
+          <div style="display:flex; justify-content:space-between; margin-bottom:50px;">
+            <div style="flex:1; text-align:center;">
+              <p style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0;">Eco Score</p>
+              <div style="font-size:48px; font-family:'DM Serif Display', serif; color:${scoreColor}; line-height:1;">${stats.score}<span style="font-size:24px; color:#9ca3af;">/100</span></div>
+              <p style="font-size:16px; color:#d1d5db; margin:8px 0 0 0; font-weight:600;">Grade: ${stats.grade}</p>
+            </div>
+            
+            <div style="width:2px; background:rgba(255,255,255,0.1);"></div>
+            
+            <div style="flex:1; text-align:center;">
+              <p style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0;">Carbon Footprint</p>
+              <div style="font-size:48px; font-family:'DM Serif Display', serif; color:#F4F9F5; line-height:1;">${stats.total.toFixed(1)}<span style="font-size:24px; color:#9ca3af;">kg</span></div>
+              <p style="font-size:14px; color:#d1d5db; margin:8px 0 0 0;">Logged this ${stats.period}</p>
+            </div>
+            
+            <div style="width:2px; background:rgba(255,255,255,0.1);"></div>
+            
+            <div style="flex:1; text-align:center;">
+              <p style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0;">Current Streak</p>
+              <div style="font-size:48px; font-family:'DM Serif Display', serif; color:#F59E0B; line-height:1;">${stats.profile?.current_streak || 0}</div>
+              <p style="font-size:16px; color:#d1d5db; margin:8px 0 0 0; font-weight:600;">Days 🔥</p>
+            </div>
+          </div>
+
+          <!-- Footer Message -->
+          <div style="text-align:center; padding-top:30px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <p style="font-size:20px; font-style:italic; color:#A3E635; margin:0;">
+              "I'm taking action for the climate with NatureGuard!"
+            </p>
+            <p style="font-size:12px; color:#6b7280; margin:12px 0 0 0;">
+              Generated on ${new Date().toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(certNode);
+      
+      const canvas = await html2canvas(certNode, {
+        backgroundColor: '#09100C',
+        scale: 2,
+        logging: false
       });
+      
+      // Cleanup node immediately
+      document.body.removeChild(certNode);
       
       canvas.toBlob(async (blob) => {
         if (!blob) throw new Error('Canvas conversion failed');
@@ -166,7 +243,7 @@ export async function render(container) {
           await navigator.clipboard.write([item]);
           
           import('../utils/toast.js').then(({ toastSuccess }) => {
-            toastSuccess('Dashboard copied to clipboard! 📸');
+            toastSuccess('Certificate copied to clipboard! 📸');
           });
         } catch (clipErr) {
           console.warn('Clipboard write failed, falling back to download', clipErr);
@@ -174,22 +251,22 @@ export async function render(container) {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `natureguard-footprint-${new Date().toISOString().split('T')[0]}.png`;
+          a.download = `natureguard-certificate-${new Date().toISOString().split('T')[0]}.png`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           
           import('../utils/toast.js').then(({ toastSuccess }) => {
-            toastSuccess('Dashboard saved as image! 📸');
+            toastSuccess('Certificate saved as image! 📸');
           });
         }
       }, 'image/png');
       
     } catch (err) {
-      console.error('Error generating screenshot', err);
+      console.error('Error generating certificate', err);
       import('../utils/toast.js').then(({ toastError }) => {
-        toastError('Failed to capture dashboard.');
+        toastError('Failed to capture certificate.');
       });
     } finally {
       btn.disabled = false;
@@ -213,13 +290,18 @@ async function loadData(container, period) {
   if (greetingEl) greetingEl.textContent = greeting;
 
   // Fetch current + prior period activities in parallel
+  showLoader();
   let activitiesResult, priorResult;
-  if (period === 'today') {
-    [activitiesResult, priorResult] = await Promise.all([getTodayActivities(), getPriorPeriodActivities('today')]);
-  } else if (period === 'month') {
-    [activitiesResult, priorResult] = await Promise.all([getMonthActivities(), getPriorPeriodActivities('month')]);
-  } else {
-    [activitiesResult, priorResult] = await Promise.all([getWeekActivities(), getPriorPeriodActivities('week')]);
+  try {
+    if (period === 'today') {
+      [activitiesResult, priorResult] = await Promise.all([getTodayActivities(), getPriorPeriodActivities('today')]);
+    } else if (period === 'month') {
+      [activitiesResult, priorResult] = await Promise.all([getMonthActivities(), getPriorPeriodActivities('month')]);
+    } else {
+      [activitiesResult, priorResult] = await Promise.all([getWeekActivities(), getPriorPeriodActivities('week')]);
+    }
+  } finally {
+    hideLoader();
   }
 
   const activities  = activitiesResult.data || [];
@@ -246,6 +328,9 @@ async function loadData(container, period) {
   if (priorTotal > 0) {
     periodDelta = ((total - priorTotal) / priorTotal) * 100;
   }
+
+  // Save stats for certificate generation
+  container._currentStats = { total, score, grade, vsAvg, benchmark, period, comps, activities, periodDelta, profile };
 
   // Render stats
   renderStats(container, { total, score, vsAvg, benchmark, period, comps, activities, periodDelta });
@@ -346,35 +431,62 @@ async function renderCharts(container, breakdown, activities, period, periodDelt
   };
 
   const categories = Object.keys(breakdown);
-  const colors = categories.map(c => CATEGORY_META[c]?.color || '#888');
-  const values = categories.map(c => breakdown[c]);
+  const hcData = categories.map(c => ({
+    name: CATEGORY_META[c]?.label,
+    y: breakdown[c],
+    color: CATEGORY_META[c]?.color
+  }));
 
-  // Donut chart
-  const donutCanvas = container.querySelector('#donut-chart');
-  if (donutCanvas) {
-    if (donutCanvas._chart) donutCanvas._chart.destroy();
-    donutCanvas._chart = new Chart(donutCanvas, {
-      type: 'doughnut',
-      data: {
-        labels: categories.map(c => CATEGORY_META[c]?.label),
-        datasets: [{ data: values, backgroundColor: colors, borderColor: 'var(--bg-base)', borderWidth: 3 }],
+  // 3D Donut chart (Highcharts)
+  const donutContainer = container.querySelector('#donut-chart');
+  if (donutContainer && window.Highcharts) {
+    window.Highcharts.chart(donutContainer, {
+      chart: {
+        type: 'pie',
+        backgroundColor: 'transparent',
+        options3d: {
+          enabled: true,
+          alpha: 45,
+          beta: 0
+        }
       },
-      options: {
-        ...chartDefaults,
-        cutout: '70%',
-        plugins: {
-          legend: {
-            display: true,
-            position: 'right',
-            labels: { color: 'rgba(240,253,244,0.7)', boxWidth: 12, padding: 8, font: { size: 11 } },
-          },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${formatCO2(ctx.raw)}  (${ctx.label})`,
+      title: { text: null },
+      tooltip: {
+        pointFormat: '{series.name}: <b>{point.y:.1f}kg</b> ({point.percentage:.1f}%)',
+        backgroundColor: 'rgba(9,16,12,0.9)',
+        style: { color: '#F4F9F5' },
+        borderColor: 'var(--border-subtle)'
+      },
+      plotOptions: {
+        pie: {
+          allowPointSelect: true,
+          cursor: 'pointer',
+          depth: 35,
+          innerSize: '50%',
+          dataLabels: { enabled: false },
+          showInLegend: true,
+          states: {
+            inactive: {
+              opacity: 0.05 // Drops opacity of non-hovered slices to 5%
             },
-          },
-        },
+            hover: {
+              brightness: 0.1 // Slight highlight on hovered slice
+            }
+          }
+        }
       },
+      legend: {
+        itemStyle: { color: 'var(--text-secondary)', fontWeight: '500' },
+        itemHoverStyle: { color: 'var(--text-primary)' },
+        align: 'right',
+        verticalAlign: 'middle',
+        layout: 'vertical'
+      },
+      credits: { enabled: false },
+      series: [{
+        name: 'CO₂',
+        data: hcData
+      }]
     });
   }
 

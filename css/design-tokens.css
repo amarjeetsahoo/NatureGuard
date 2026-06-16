@@ -111,7 +111,47 @@
   --content-pad:      clamp(16px, 4vw, 48px);
 }
 
-/* ── Light mode (optional future) ── */
-@media (prefers-color-scheme: light) {
-  /* Not implemented in v1 — dark mode only by design */
+/* ── Light mode ── */
+.theme-light {
+  /* ── Backgrounds ── */
+  --bg-base:       #F4F9F5;   /* Light sage background */
+  --bg-surface:    #FFFFFF;   /* White card surfaces */
+  --bg-elevated:   #FFFFFF;   /* White elevated / modals */
+  --bg-overlay:    rgba(244, 249, 245, 0.85);
+
+  /* ── Brand Accents ── */
+  /* Keep Lime and Teal mostly similar but adjust for contrast if needed.
+     Using slightly deeper shades for better readability on white. */
+  --accent-lime:        #65A30D;   
+  --accent-lime-dim:    #4D7C0F;   
+  --accent-teal:        #0D9488;   
+  --accent-teal-dim:    #0F766E;
+  --accent-amber:       #D97706;   
+  --accent-red:         #DC2626;   
+  --accent-purple:      #7C3AED;   
+
+  /* ── Text ── */
+  --text-primary:       #064E3B;   /* Very dark emerald */
+  --text-secondary:     #047857;
+  --text-muted:         #059669;
+  --text-disabled:      #A7F3D0;
+  --text-inverse:       #FFFFFF;
+
+  /* ── Borders ── */
+  --border-subtle:      rgba(6, 78, 59, 0.08);
+  --border-default:     rgba(6, 78, 59, 0.15);
+  --border-focus:       var(--accent-lime);
+  --border-accent:      rgba(101, 163, 13, 0.25);
+
+  /* ── Glassmorphism ── */
+  --glass-bg:           rgba(255, 255, 255, 0.6);
+  --glass-bg-hover:     rgba(255, 255, 255, 0.9);
+  --glass-border:       rgba(6, 78, 59, 0.08);
+
+  /* ── Shadows ── */
+  --shadow-sm:    0 1px 3px rgba(6, 78, 59, 0.1);
+  --shadow-md:    0 4px 16px rgba(6, 78, 59, 0.08);
+  --shadow-lg:    0 8px 32px rgba(6, 78, 59, 0.12);
+  --shadow-glow-lime:  0 0 24px rgba(101, 163, 13, 0.15);
+  --shadow-glow-teal:  0 0 24px rgba(13, 148, 136, 0.15);
 }

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.activities (
   id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id     UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  category    TEXT        NOT NULL CHECK (category IN ('transport','food','energy','shopping','travel')),
+  category    TEXT        NOT NULL,
   activity    TEXT        NOT NULL,
   quantity    FLOAT       NOT NULL,
   unit        TEXT        NOT NULL,

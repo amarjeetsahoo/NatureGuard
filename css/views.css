@@ -28,7 +28,7 @@
   left: 0;
   right: 0;
   height: var(--nav-height);
-  background: rgba(9,16,12,0.9);
+  background: var(--bg-overlay);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-subtle);
   display: flex;
@@ -82,7 +82,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-4) var(--content-pad);
-  background: rgba(9,16,12,0.85);
+  background: var(--bg-overlay);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -369,7 +369,7 @@
   gap: var(--space-3);
   padding: var(--space-6);
 }
-.score-ring-wrap { position: relative; width: 140px; height: 140px; }
+.score-ring-wrap { position: relative; width: 90px; height: 90px; margin: 0 auto; }
 .score-ring-wrap svg { transform: rotate(-90deg); }
 .score-ring-center {
   position: absolute;
@@ -381,7 +381,7 @@
 }
 .score-number {
   font-family: var(--font-display);
-  font-size: var(--text-3xl);
+  font-size: var(--text-xl);
   line-height: 1;
 }
 .score-grade {
@@ -393,7 +393,7 @@
 /* ── Log Activity View ── */
 .category-tiles {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: var(--space-3);
   margin-bottom: var(--space-6);
 }
@@ -522,7 +522,7 @@
 
 /* ── Responsive — Desktop ── */
 @media (min-width: 768px) {
-  .category-tiles { grid-template-columns: repeat(5, 1fr); }
+  .category-tiles { grid-template-columns: repeat(6, 1fr); }
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
 
   #bottom-nav { display: none; }
@@ -540,10 +540,28 @@
     padding: var(--space-6);
     gap: var(--space-2);
     z-index: var(--z-nav);
+    transition: width 0.3s ease;
+  }
+
+  #sidebar.collapsed {
+    width: 80px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  #sidebar.collapsed .logo-text,
+  #sidebar.collapsed .nav-item > span:nth-child(2),
+  #sidebar.collapsed .avatar-details {
+    display: none;
   }
 
   .main-content {
+    transition: margin-left 0.3s ease;
     margin-left: var(--sidebar-width);
+  }
+
+  body.sidebar-collapsed .main-content {
+    margin-left: 80px;
   }
 
   .view {

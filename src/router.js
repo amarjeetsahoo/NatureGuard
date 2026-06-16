@@ -4,6 +4,7 @@
  */
 
 import { authGuard } from './auth/authGuard.js';
+import { showLoader, hideLoader } from './utils/loader.js';
 
 // Lazy-load view modules for efficiency
 const routes = {
@@ -43,8 +44,9 @@ export const router = {
 
     const loader = routes[route] || routes['#landing'];
 
-
     try {
+      showLoader(); // Show leaf loader while downloading bundle and preparing view
+      
       const { render } = await loader();
       this.currentRoute = route;
       location.hash = route;
@@ -62,6 +64,8 @@ export const router = {
       main.scrollTo({ top: 0, behavior: 'instant' });
     } catch (err) {
       console.error('[Router] Failed to load view:', route, err);
+    } finally {
+      hideLoader(); // Hide loader when done
     }
   },
 };

@@ -110,11 +110,11 @@ export function totalCO2(activities = []) {
  * @returns {Object} { transport: number, food: number, ... }
  */
 export function breakdownByCategory(activities = []) {
-  const categories = ['transport', 'food', 'energy', 'shopping', 'travel'];
-  return categories.reduce((acc, cat) => {
-    acc[cat] = activities
-      .filter(a => a.category === cat)
-      .reduce((sum, a) => sum + Number(a.co2_kg), 0);
+  return activities.reduce((acc, a) => {
+    const knownCategories = ['transport', 'food', 'energy', 'shopping', 'travel'];
+    const cat = knownCategories.includes(a.category) ? a.category : 'other';
+    if (!acc[cat]) acc[cat] = 0;
+    acc[cat] += Number(a.co2_kg) || 0;
     return acc;
   }, {});
 }

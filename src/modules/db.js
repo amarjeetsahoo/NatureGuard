@@ -67,20 +67,25 @@ export async function saveActivities(activities) {
  * Fetch activities for the current user.
  * @param {{ from?: string, to?: string, category?: string, limit?: number }} opts
  */
-export async function getActivities({ from, to, category, limit = 100 } = {}) {
+export async function getActivities({ from, to, category, limit = 100, page = 0 } = {}) {
   const user = await getCurrentUser();
-  if (!user) return { data: [], error: null };
+  if (!user) return { data: [], error: null, count: 0 };
 
   let query = supabase
     .from('activities')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', user.id)
-    .order('logged_at', { ascending: false })
-    .limit(limit);
+    .order('logged_at', { ascending: false });
 
   if (from) query = query.gte('logged_at', from);
   if (to)   query = query.lte('logged_at', to);
   if (category) query = query.eq('category', category);
+
+  if (limit) {
+    const fromRange = page * limit;
+    const toRange = fromRange + limit - 1;
+    query = query.range(fromRange, toRange);
+  }
 
   return query;
 }
@@ -165,18 +170,24 @@ export async function updateActivity(id, changes) {
 // USER ACTIONS
 // ─────────────────────────────────────────────
 
-/** Get all user actions with a given status. */
-export async function getUserActions(status = null) {
+export async function getUserActions({ status = null, limit = 100, page = 0 } = {}) {
   const user = await getCurrentUser();
-  if (!user) return { data: [], error: null };
+  if (!user) return { data: [], error: null, count: 0 };
 
   let query = supabase
     .from('user_actions')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (status) query = query.eq('status', status);
+
+  if (limit) {
+    const fromRange = page * limit;
+    const toRange = fromRange + limit - 1;
+    query = query.range(fromRange, toRange);
+  }
+
   return query;
 }
 

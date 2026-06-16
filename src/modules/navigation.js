@@ -21,6 +21,29 @@ export function renderNavigation(user) {
   renderBottomNav();
   renderSidebar(user);
   renderTopBar(user);
+  setupThemeToggle();
+}
+
+function setupThemeToggle() {
+  const isLight = document.documentElement.classList.contains('theme-light');
+  document.querySelectorAll('.theme-toggle-icon').forEach(icon => {
+    icon.innerHTML = isLight ? '🌙' : '☀️';
+  });
+  
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const isCurrentlyLight = document.documentElement.classList.contains('theme-light');
+      if (isCurrentlyLight) {
+        document.documentElement.classList.remove('theme-light');
+        localStorage.setItem('natureguard-theme', 'dark');
+        document.querySelectorAll('.theme-toggle-icon').forEach(i => i.innerHTML = '☀️');
+      } else {
+        document.documentElement.classList.add('theme-light');
+        localStorage.setItem('natureguard-theme', 'light');
+        document.querySelectorAll('.theme-toggle-icon').forEach(i => i.innerHTML = '🌙');
+      }
+    });
+  });
 }
 
 function renderTopBar(user) {
@@ -30,7 +53,8 @@ function renderTopBar(user) {
   const initials = getInitials(user?.user_metadata?.display_name || user?.email || '?');
   actions.innerHTML = `
     <div id="streak-pill" style="display:none;align-items:center;gap:4px;padding:4px 10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:9999px;font-size:12px;font-weight:600;color:var(--accent-amber);"></div>
-    <button class="avatar-btn" data-route="#settings" aria-label="Settings" style="border:none; background:none; cursor:pointer; padding:0;">
+    <button class="theme-toggle-btn" aria-label="Toggle Theme" style="border:none;background:none;cursor:pointer;padding:0;font-size:20px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"><span class="theme-toggle-icon">☀️</span></button>
+    <button class="avatar-btn" data-route="#settings" aria-label="Settings" style="border:none; background:none; cursor:pointer; padding:0;margin-left:8px;">
       <div class="avatar avatar-sm">${initials}</div>
     </button>
   `;
@@ -85,10 +109,18 @@ function renderSidebar(user) {
   const initials = getInitials(user?.user_metadata?.display_name || user?.email || '?');
   const name = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User';
 
+  const isCollapsed = localStorage.getItem('natureguard-sidebar') === 'collapsed';
+  if (isCollapsed) sidebar.classList.add('collapsed');
+
   sidebar.innerHTML = `
-    <div class="logo" style="margin-bottom:32px;">
-      <span class="logo-leaf" aria-hidden="true">🌿</span>
-      <span class="logo-text">Nature<span>Guard</span></span>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; overflow:hidden;">
+      <div class="logo">
+        <span class="logo-leaf" aria-hidden="true">🌿</span>
+        <span class="logo-text">Nature<span>Guard</span></span>
+      </div>
+      <button id="sidebar-collapse-btn" aria-label="Toggle Sidebar" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:4px;margin-right:-8px;" title="Collapse sidebar">
+        <span class="collapse-icon">${isCollapsed ? '▶' : '◀'}</span>
+      </button>
     </div>
 
     <div id="sidebar-nav-items" style="display:flex;flex-direction:column;gap:4px;flex:1;">
@@ -106,13 +138,22 @@ function renderSidebar(user) {
     </div>
 
     <button
+      class="nav-item theme-toggle-btn"
+      aria-label="Toggle Theme"
+      style="flex-direction:row;justify-content:flex-start;gap:12px;border-radius:12px;margin-top:auto;"
+    >
+      <span class="theme-toggle-icon" style="font-size:18px;" aria-hidden="true">☀️</span>
+      <span style="font-size:14px;font-weight:500;">Toggle Theme</span>
+    </button>
+
+    <button
       class="nav-item"
       data-route="#settings"
       aria-label="Settings"
       style="flex-direction:row;justify-content:flex-start;gap:12px;border-radius:12px;border-top:1px solid var(--border-subtle);padding-top:16px;margin-top:8px;"
     >
-      <div class="avatar avatar-sm">${initials}</div>
-      <div style="text-align:left;">
+      <div class="avatar avatar-sm" style="flex-shrink:0;">${initials}</div>
+      <div class="avatar-details" style="text-align:left;overflow:hidden;white-space:nowrap;">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${name}</div>
         <div style="font-size:11px;color:var(--text-muted);">Settings</div>
       </div>
@@ -120,8 +161,24 @@ function renderSidebar(user) {
   `;
 
   sidebar.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => router.navigate(btn.dataset.route));
+    btn.addEventListener('click', () => {
+      if (btn.dataset.route) router.navigate(btn.dataset.route);
+    });
   });
+
+  const collapseBtn = sidebar.querySelector('#sidebar-collapse-btn');
+  if (collapseBtn) {
+    collapseBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      const collapsed = sidebar.classList.contains('collapsed');
+      localStorage.setItem('natureguard-sidebar', collapsed ? 'collapsed' : 'expanded');
+      sidebar.querySelector('.collapse-icon').textContent = collapsed ? '▶' : '◀';
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+    });
+  }
+
+  // Set initial body class
+  if (isCollapsed) document.body.classList.add('sidebar-collapsed');
 
   // Show sidebar on desktop
   sidebar.hidden = false;

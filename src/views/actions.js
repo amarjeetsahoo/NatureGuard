@@ -9,6 +9,9 @@ import { getUserActions, saveAction, updateActionStatus } from '../modules/db.js
 import { ACTION_LIBRARY } from '../data/actionLibrary.js';
 import { toastSuccess, toastError, toastInfo } from '../utils/toast.js';
 
+let currentAdoptedPage = 0;
+const ADOPTED_LIMIT = 10;
+
 export async function render(container) {
   container.innerHTML = `
     <div class="view" id="actions-view">
@@ -36,12 +39,21 @@ export async function render(container) {
       <!-- Adopted Tab Content -->
       <div id="panel-adopted" role="tabpanel" hidden>
         <div id="adopted-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+        <button id="adopted-load-more" class="btn btn-secondary btn-sm" style="width:100%; display:none; margin-top:8px;">Load More</button>
       </div>
     </div>
   `;
 
   setupTabs(container);
   await loadActions(container);
+
+  const loadMoreBtn = container.querySelector('#adopted-load-more');
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', () => {
+      currentAdoptedPage++;
+      loadAdoptedPage(container, true);
+    });
+  }
 }
 
 function setupTabs(container) {
@@ -62,12 +74,14 @@ function setupTabs(container) {
 }
 
 async function loadActions(container) {
-  const { data: userActions } = await getUserActions();
-  const adoptedKeys = (userActions || []).filter(a => a.status === 'adopted').map(a => a.action_key);
-  const dismissedKeys = (userActions || []).filter(a => a.status === 'dismissed').map(a => a.action_key);
+  // Fetch up to 1000 actions to filter out adopted/dismissed from new suggestions
+  const { data: allActions } = await getUserActions({ limit: 1000 });
+  const adoptedKeys = (allActions || []).filter(a => a.status === 'adopted').map(a => a.action_key);
+  const dismissedKeys = (allActions || []).filter(a => a.status === 'dismissed').map(a => a.action_key);
   
   // Render Adopted
-  renderAdopted(container, userActions || []);
+  currentAdoptedPage = 0;
+  await loadAdoptedPage(container);
 
   // Fetch AI Suggestions
   const allSuggestions = await getPersonalizedActions();
@@ -163,23 +177,27 @@ async function loadActions(container) {
   });
 }
 
-function renderAdopted(container, userActions) {
-  const listEl = container.querySelector('#adopted-list');
-  const adopted = userActions.filter(a => a.status === 'adopted');
+async function loadAdoptedPage(container, append = false) {
+  if (!append) currentAdoptedPage = 0;
 
-  if (adopted.length === 0) {
+  const { data: adopted, count } = await getUserActions({ status: 'adopted', limit: ADOPTED_LIMIT, page: currentAdoptedPage });
+  const listEl = container.querySelector('#adopted-list');
+  const loadMoreBtn = container.querySelector('#adopted-load-more');
+
+  if (!append && (!adopted || adopted.length === 0)) {
     listEl.innerHTML = `
       <div class="empty-state" style="padding:24px 16px;">
         <div class="empty-state-icon">🌱</div>
         <p class="empty-state-desc">You haven't adopted any actions yet.</p>
       </div>
     `;
+    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
     return;
   }
 
   const icons = { transport:'🚗', food:'🍔', energy:'⚡', shopping:'🛍️', travel:'✈️', general:'💡' };
 
-  listEl.innerHTML = adopted.map(a => {
+  const html = adopted.map(a => {
     // Cross-reference with base library for icon/category
     const base = ACTION_LIBRARY.find(l => l.key === a.action_key) || { category: 'general' };
     const date = new Date(a.adopted_at || a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -200,4 +218,15 @@ function renderAdopted(container, userActions) {
       </div>
     `;
   }).join('');
+
+  if (append) {
+    listEl.insertAdjacentHTML('beforeend', html);
+  } else {
+    listEl.innerHTML = html;
+  }
+
+  if (loadMoreBtn) {
+    const totalLoaded = (currentAdoptedPage + 1) * ADOPTED_LIMIT;
+    loadMoreBtn.style.display = count > totalLoaded ? 'block' : 'none';
+  }
 }
