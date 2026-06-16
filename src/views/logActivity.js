@@ -19,11 +19,14 @@ const CATEGORIES = [
   { key: 'energy',    icon: '⚡', label: 'Energy'    },
   { key: 'shopping',  icon: '🛍️', label: 'Shopping'  },
   { key: 'travel',    icon: '✈️', label: 'Travel'    },
+  { key: 'other',     icon: '✨', label: 'Other'     },
 ];
 
 let selectedCategory = null;
 let currentCO2 = 0;
 let profile = null;
+let currentRecentPage = 0;
+const RECENT_LIMIT = 10;
 
 export async function render(container) {
   const { data: prof } = await getProfile();
@@ -40,7 +43,7 @@ export async function render(container) {
           <span>Describe your day to AI</span>
           <span class="badge badge-teal" style="margin-left:auto;font-size:10px;">AI</span>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
           <textarea
             id="nl-input"
             class="input textarea"
@@ -51,8 +54,28 @@ export async function render(container) {
           ></textarea>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-          <span style="font-size:11px;color:var(--text-muted);">Powered by Gemini AI · Requires API key in Settings</span>
-          <button id="nl-parse-btn" class="btn btn-teal btn-sm">Parse ✨</button>
+          <span id="voice-status" style="font-size:11px;color:var(--text-muted);">Powered by Gemini AI · Requires API key in Settings</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button
+              id="voice-btn"
+              type="button"
+              aria-label="Start voice input"
+              title="Speak your activity"
+              style="
+                flex-shrink:0;
+                width:36px;height:36px;
+                border-radius:50%;
+                background:var(--glass-bg);
+                border:1.5px solid var(--border-default);
+                cursor:pointer;
+                display:flex;align-items:center;justify-content:center;
+                font-size:16px;
+                transition:all 0.2s ease;
+                color:var(--text-primary);
+              "
+            >🎙️</button>
+            <button id="nl-parse-btn" class="btn btn-teal btn-sm">Parse ✨</button>
+          </div>
         </div>
       </div>
 
@@ -100,12 +123,28 @@ export async function render(container) {
           <div class="skeleton skeleton-text" style="height:48px;border-radius:12px;margin-bottom:8px;"></div>
           <div class="skeleton skeleton-text" style="height:48px;border-radius:12px;"></div>
         </div>
+        <button id="recent-load-more" class="btn btn-secondary btn-sm" style="width:100%; display:none; margin-top:8px;">Load More</button>
       </div>
     </div>
   `;
 
   setupCategoryTiles(container);
   setupNLParser(container);
+  const mainBtn = container.querySelector('#voice-btn');
+  const mainTextarea = container.querySelector('#nl-input');
+  const mainStatusEl = container.querySelector('#voice-status');
+  if (mainBtn && mainTextarea && mainStatusEl) {
+    setupVoiceInput(mainBtn, mainTextarea, mainStatusEl, 'Powered by Gemini AI · Requires API key in Settings');
+  }
+
+  const loadMoreBtn = container.querySelector('#recent-load-more');
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', () => {
+      currentRecentPage++;
+      loadRecentActivities(container, true);
+    });
+  }
+
   loadRecentActivities(container);
 }
 
@@ -135,6 +174,7 @@ function renderActivityForm(container, category) {
     energy:    energyForm,
     shopping:  shoppingForm,
     travel:    travelForm,
+    other:     otherForm,
   };
 
   form.innerHTML = (forms[category] || (() => ''))();
@@ -275,9 +315,90 @@ function travelForm() {
   `;
 }
 
+function otherForm() {
+  return `
+    <h3 style="font-size:15px;font-weight:600;margin-bottom:16px;">✨ Other Activity</h3>
+    <div class="input-group" style="margin-bottom:16px;">
+      <label class="input-label" for="other-desc">Describe what you did</label>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <textarea id="other-desc" class="input textarea" placeholder="e.g. Spent 2 hours playing video games" rows="2" style="flex:1;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span id="other-voice-status" style="font-size:11px;color:var(--text-muted);">AI will estimate the carbon footprint.</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button
+          id="other-voice-btn"
+          type="button"
+          aria-label="Start voice input"
+          title="Speak your activity"
+          style="
+            flex-shrink:0;
+            width:36px;height:36px;
+            border-radius:50%;
+            background:var(--glass-bg);
+            border:1.5px solid var(--border-default);
+            cursor:pointer;
+            display:flex;align-items:center;justify-content:center;
+            font-size:16px;
+            transition:all 0.2s ease;
+            color:var(--text-primary);
+          "
+        >🎙️</button>
+        <button id="other-log-btn" class="btn btn-teal btn-sm" type="button">Log via AI ✨</button>
+      </div>
+    </div>
+  `;
+}
+
 // ── Form listeners & live CO₂ preview ──────────────────────
 
 function setupFormListeners(container, category) {
+  if (category === 'other') {
+    const voiceBtn = container.querySelector('#other-voice-btn');
+    const textarea = container.querySelector('#other-desc');
+    const statusEl = container.querySelector('#other-voice-status');
+    if (voiceBtn && textarea && statusEl) {
+      setupVoiceInput(voiceBtn, textarea, statusEl, 'AI will estimate the carbon footprint.');
+    }
+
+    const btn = container.querySelector('#other-log-btn');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        const desc = container.querySelector('#other-desc').value.trim();
+        if (!desc) { toastInfo('Please describe your activity'); return; }
+        
+        btn.classList.add('loading');
+        try {
+          const { parseActivities } = await import('../ai/nlLogger.js');
+          const parsed = await parseActivities(desc);
+          
+          if (!parsed || parsed.length === 0) {
+            toastInfo('Could not parse activity. Try being more specific.');
+            btn.classList.remove('loading');
+            return;
+          }
+          
+          const { error } = await saveActivities(parsed);
+          if (error) { toastError('Failed to save. Please try again.'); btn.classList.remove('loading'); return; }
+          
+          toastSuccess('✅ Logged via AI!');
+          eventBus.emit(EVENTS.ACTIVITY_LOGGED, parsed);
+          
+          container.querySelectorAll('.category-tile').forEach(t => t.classList.remove('active'));
+          container.querySelector('#activity-form').hidden = true;
+          selectedCategory = null;
+          loadRecentActivities(container);
+        } catch (err) {
+          console.error(err);
+          toastError(err.message || 'AI parsing failed.');
+        }
+        btn.classList.remove('loading');
+      });
+    }
+    return;
+  }
+
   let selectedSubtype = getDefaultSubtype(category);
 
   // Chip selection
@@ -425,12 +546,15 @@ function getUnit(category) {
 
 // ── Recent Activities ─────────────────────────────────────
 
-async function loadRecentActivities(container) {
-  const { data: activities } = await getActivities({ limit: 10 });
+async function loadRecentActivities(container, append = false) {
+  if (!append) currentRecentPage = 0;
+
+  const { data: activities, count } = await getActivities({ limit: RECENT_LIMIT, page: currentRecentPage });
   const listEl = container.querySelector('#recent-list');
+  const loadMoreBtn = container.querySelector('#recent-load-more');
   if (!listEl) return;
 
-  if (!activities || activities.length === 0) {
+  if (!append && (!activities || activities.length === 0)) {
     listEl.innerHTML = `
       <div class="empty-state" style="padding:16px;">
         <div class="empty-state-icon">📋</div>
@@ -438,14 +562,15 @@ async function loadRecentActivities(container) {
         <p class="empty-state-desc">Log your first activity above</p>
       </div>
     `;
+    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
     return;
   }
 
-  const catIcons = { transport:'🚗', food:'🍔', energy:'⚡', shopping:'🛍️', travel:'✈️' };
+  const catIcons = { transport:'🚗', food:'🍔', energy:'⚡', shopping:'🛍️', travel:'✈️', other: '✨' };
 
-  listEl.innerHTML = activities.map(a => `
+  const html = activities.map(a => `
     <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--glass-bg);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:8px;" data-id="${a.id}">
-      <span style="font-size:20px;">${catIcons[a.category] || '📌'}</span>
+      <span style="font-size:20px;">${catIcons[a.category] || '✨'}</span>
       <div style="flex:1;min-width:0;">
         <p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.activity}</p>
         <p style="font-size:11px;color:var(--text-muted);">${new Date(a.logged_at).toLocaleDateString('en', { weekday:'short', hour:'2-digit', minute:'2-digit' })}</p>
@@ -457,7 +582,24 @@ async function loadRecentActivities(container) {
     </div>
   `).join('');
 
-  listEl.querySelectorAll('.delete-btn').forEach(btn => {
+  if (append) {
+    listEl.insertAdjacentHTML('beforeend', html);
+  } else {
+    listEl.innerHTML = html;
+  }
+
+  if (loadMoreBtn) {
+    const totalLoaded = (currentRecentPage + 1) * RECENT_LIMIT;
+    loadMoreBtn.style.display = count > totalLoaded ? 'block' : 'none';
+  }
+
+  // Use event delegation on the listEl so appended items inherit it seamlessly
+  // But wait, attaching multiple listeners to listEl when re-rendering isn't great.
+  // Instead, remove the old listener (by cloning or just relying on target checks, but we need to ensure we only attach once per render cycle)
+  // Actually, since we want to avoid multiple event listeners, let's just query all .delete-btn that don't have listeners.
+  // Wait, the simplest way is to attach listener to newly added buttons when appending, or all when not.
+  const btns = append ? Array.from(listEl.querySelectorAll('.delete-btn')).slice(-activities.length) : listEl.querySelectorAll('.delete-btn');
+  btns.forEach(btn => {
     btn.addEventListener('click', async () => {
       const { error } = await deleteActivity(btn.dataset.id);
       if (error) { toastError('Could not delete'); return; }
@@ -507,7 +649,7 @@ function setupNLParser(container) {
 
 function renderNLResults(container, parsed) {
   const resultsEl = container.querySelector('#nl-results');
-  const catIcons = { transport:'🚗', food:'🍔', energy:'⚡', shopping:'🛍️', travel:'✈️' };
+  const catIcons = { transport:'🚗', food:'🍔', energy:'⚡', shopping:'🛍️', travel:'✈️', other: '✨' };
 
   resultsEl.hidden = false;
   resultsEl.innerHTML = `
@@ -522,7 +664,7 @@ function renderNLResults(container, parsed) {
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${parsed.map((a, i) => `
           <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--glass-bg);border-radius:10px;" data-index="${i}">
-            <span>${catIcons[a.category] || '📌'}</span>
+            <span>${catIcons[a.category] || '✨'}</span>
             <div style="flex:1;">
               <p style="font-size:13px;font-weight:500;">${a.activity}</p>
               <p style="font-size:11px;color:var(--text-muted);">${a.quantity} ${a.unit}</p>
@@ -569,5 +711,144 @@ function renderNLResults(container, parsed) {
     container.querySelector('#nl-input').value = '';
     eventBus.emit(EVENTS.ACTIVITY_LOGGED, remaining);
     loadRecentActivities(container);
+  });
+}
+
+// ── Voice Input (Speech-to-Text) ──────────────────────────
+
+function setupVoiceInput(btn, textarea, statusEl, defaultStatusText) {
+  if (!btn) return;
+
+  // Check browser support
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    btn.style.opacity = '0.4';
+    btn.style.cursor = 'not-allowed';
+    btn.title = 'Voice input not supported in this browser';
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = false;     // One utterance at a time, then auto-restart
+  recognition.interimResults = true;  // Live partial results while speaking
+  recognition.lang = 'en-US';
+  recognition.maxAlternatives = 1;
+
+  let isListening = false;
+  let committedText = '';  // Text confirmed so far (not interim)
+
+  const setListeningUI = (listening) => {
+    isListening = listening;
+    if (listening) {
+      btn.style.background = 'rgba(239, 68, 68, 0.2)';
+      btn.style.borderColor = '#EF4444';
+      btn.style.boxShadow = '0 0 0 4px rgba(239,68,68,0.15), 0 0 16px rgba(239,68,68,0.2)';
+      btn.style.animation = 'pulseGlow 1.2s ease-in-out infinite';
+      btn.textContent = '⏹️';
+      btn.title = 'Click to stop';
+      btn.setAttribute('aria-label', 'Stop voice input');
+      statusEl.style.color = '#EF4444';
+      statusEl.textContent = '🎙️ Listening... speak now';
+    } else {
+      btn.style.background = 'var(--glass-bg)';
+      btn.style.borderColor = 'var(--border-default)';
+      btn.style.boxShadow = '';
+      btn.style.animation = '';
+      btn.textContent = '🎙️';
+      btn.title = 'Speak your activity';
+      btn.setAttribute('aria-label', 'Start voice input');
+      statusEl.style.color = 'var(--text-muted)';
+      statusEl.textContent = defaultStatusText;
+    }
+  };
+
+  const startRecognition = () => {
+    try { recognition.start(); } catch(e) { /* already started */ }
+  };
+
+  recognition.onstart = () => {
+    // Sync committedText to whatever's already in the textarea when recording starts
+    committedText = textarea.value;
+  };
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    let final = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        final += t;
+      } else {
+        interim += t;
+      }
+    }
+
+    console.log('[Voice Debug] onresult fired. Interim:', interim, '| Final:', final);
+
+    if (final) {
+      // Append confirmed text with a space separator
+      const separator = committedText && !committedText.endsWith(' ') ? ' ' : '';
+      committedText = committedText + separator + final.trim();
+      textarea.value = committedText;
+      statusEl.textContent = `🎙️ "${final.trim()}"`;
+    } else if (interim) {
+      // Show live preview in the textarea (not committed yet)
+      const separator = committedText && !committedText.endsWith(' ') ? ' ' : '';
+      textarea.value = committedText + separator + interim;
+      statusEl.textContent = `🎙️ Hearing: "${interim.trim()}"`;
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.warn('[Voice Debug] onerror fired:', event.error);
+    // no-speech: user didn't say anything during this session window — just restart silently
+    if (event.error === 'no-speech') {
+      statusEl.textContent = '🎙️ Listening... speak now';
+      return; // onend will auto-restart
+    }
+    // aborted: we stopped it manually — ignore
+    if (event.error === 'aborted') return;
+
+    // Fatal errors: stop completely
+    setListeningUI(false);
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      import('../utils/toast.js').then(({ toastError }) => {
+        toastError('Microphone access denied. Please allow mic access in browser settings.');
+      });
+    } else if (event.error === 'audio-capture') {
+      import('../utils/toast.js').then(({ toastError }) => {
+        toastError('No microphone found. Please connect a microphone and try again.');
+      });
+    } else {
+      import('../utils/toast.js').then(({ toastError }) => {
+        toastError(`Voice error: ${event.error}. Please try again.`);
+      });
+    }
+  };
+
+  recognition.onend = () => {
+    console.log('[Voice Debug] onend fired. isListening =', isListening);
+    if (isListening) {
+      // Auto-restart to keep listening continuously
+      setTimeout(startRecognition, 100);
+    }
+  };
+
+  btn.addEventListener('click', () => {
+    if (isListening) {
+      setListeningUI(false);
+      recognition.stop();
+      import('../utils/toast.js').then(({ toastInfo }) => {
+        toastInfo('Voice input stopped. Processing final words...');
+      });
+    } else {
+      committedText = textarea.value; // start from existing textarea content
+      setListeningUI(true);
+      startRecognition();
+      import('../utils/toast.js').then(({ toastSuccess }) => {
+        toastSuccess('🎙️ Voice input started — speak freely!');
+      });
+    }
   });
 }
