@@ -4,13 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com; img-src 'self' data: blob:;" />
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://code.highcharts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; connect-src *; media-src *; img-src 'self' data: blob:;" />
+
+  <!-- Highcharts for 3D Pie Chart -->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-3d.js"></script>
 
   <!-- SEO -->
   <title>NatureGuard — AI-Powered Carbon Footprint Tracker</title>
   <meta name="description" content="Understand, track, and reduce your carbon footprint with personalized AI coaching. Log daily activities, see real-time CO₂ impact, and get smart action plans." />
   <meta name="keywords" content="carbon footprint, sustainability, climate, CO2, eco tracker, AI coach" />
   <meta name="author" content="NatureGuard" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -34,12 +41,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="/css/reset.css" />
-  <link rel="stylesheet" href="/css/design-tokens.css" />
-  <link rel="stylesheet" href="/css/animations.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/css/views.css" />
+
 </head>
 <body>
 
@@ -77,6 +79,14 @@
       <!-- Rendered by navigation module -->
     </nav>
 
+  </div>
+
+  <!-- Global Loader Overlay -->
+  <div id="global-loader" class="loader-overlay hidden" aria-hidden="true">
+    <div class="loader-content">
+      <div class="leaf-loader">🌿</div>
+      <p class="loader-text">Loading...</p>
+    </div>
   </div>
 
   <!-- Toast Notification Container -->

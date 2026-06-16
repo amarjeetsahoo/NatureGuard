@@ -119,3 +119,55 @@
 .stagger-children > *:nth-child(3) { animation-delay: 160ms; }
 .stagger-children > *:nth-child(4) { animation-delay: 240ms; }
 .stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+
+/* ── Leaf Loader ── */
+@keyframes windBlowSway {
+  0% { transform: rotate(-10deg) translateX(-5px); }
+  50% { transform: rotate(25deg) translateX(15px); }
+  100% { transform: rotate(-10deg) translateX(-5px); }
+}
+
+@keyframes leafPulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(163, 230, 53, 0.2)); }
+  50% { filter: drop-shadow(0 0 15px rgba(163, 230, 53, 0.6)); }
+}
+
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loader-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: fadeInScale 0.4s ease both;
+}
+
+.leaf-loader {
+  font-size: 64px;
+  animation: windBlowSway 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite, leafPulseGlow 2.5s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.loader-text {
+  font-family: var(--font-display, 'DM Serif Display', serif);
+  font-size: 20px;
+  color: var(--text-primary);
+  letter-spacing: 1.5px;
+  font-weight: 500;
+}

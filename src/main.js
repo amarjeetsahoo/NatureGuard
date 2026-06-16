@@ -3,6 +3,12 @@
  * Boots the app, checks for existing session, and starts the router.
  */
 
+import '../css/reset.css';
+import '../css/design-tokens.css';
+import '../css/animations.css';
+import '../css/components.css';
+import '../css/views.css';
+
 import { supabase } from './auth/supabaseClient.js';
 import { onAuthChange, getCurrentSession } from './auth/authService.js';
 import { router } from './router.js';
@@ -24,6 +30,12 @@ async function boot() {
         console.warn('Service worker registration failed:', err);
       });
     });
+  }
+
+  // Initialize Theme
+  const savedTheme = localStorage.getItem('natureguard-theme');
+  if (savedTheme === 'light' || (!savedTheme && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+    document.documentElement.classList.add('theme-light');
   }
 
   // 1. Check for an existing session IMMEDIATELY on load

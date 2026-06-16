@@ -1,13 +1,8 @@
-const CACHE_NAME = 'natureguard-cache-v1';
+const CACHE_NAME = 'natureguard-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/css/reset.css',
-  '/css/design-tokens.css',
-  '/css/animations.css',
-  '/css/components.css',
-  '/css/views.css'
+  '/manifest.json'
 ];
 
 // Install Event
