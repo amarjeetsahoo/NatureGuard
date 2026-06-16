@@ -25,14 +25,24 @@ export async function parseActivities(text) {
   // Calculate CO₂ for each parsed activity
   return parsed
     .filter(a => a.category && a.quantity > 0)
-    .map(a => ({
-      category: a.category,
-      activity: a.activity || `${a.category} activity`,
-      quantity: a.quantity,
-      unit: a.unit,
-      co2_kg: Number(calculateCO2ForParsed(a).toFixed(4)),
-      source: 'ai_parsed',
-    }));
+    .map(a => {
+      const isCustomCategory = !['transport', 'food', 'energy', 'shopping', 'travel'].includes(a.category);
+      let calculatedCO2 = 0;
+      if (isCustomCategory && a.co2_estimate) {
+        calculatedCO2 = Number(a.co2_estimate);
+      } else {
+        calculatedCO2 = Number(calculateCO2ForParsed(a).toFixed(4));
+      }
+
+      return {
+        category: a.category,
+        activity: a.activity || `${a.category} activity`,
+        quantity: a.quantity,
+        unit: a.unit,
+        co2_kg: calculatedCO2,
+        source: 'ai_parsed',
+      };
+    });
 }
 
 /**
