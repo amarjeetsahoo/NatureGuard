@@ -7,6 +7,7 @@ import { router } from '../router.js';
 import { getInitials } from '../utils/dom.js';
 import { eventBus, EVENTS } from './eventBus.js';
 import { getProfile } from './db.js';
+import { signOut } from '../auth/authService.js';
 
 const NAV_ITEMS = [
   { route: '#dashboard', icon: '⊞',  label: 'Dashboard',  emoji: '🏠' },
@@ -14,7 +15,8 @@ const NAV_ITEMS = [
   { route: '#coach',     icon: 'AI',  label: 'AI Coach',    emoji: '🤖' },
   { route: '#actions',   icon: '⚡',  label: 'Actions',     emoji: '💡' },
   { route: '#insights',  icon: '📊',  label: 'Insights',    emoji: '📊' },
-  { route: '#whatif',    icon: '?',   label: 'What-If',     emoji: '🔮' }
+  { route: '#whatif',    icon: '?',   label: 'What-If',     emoji: '🔮' },
+  { route: '#rewards',   icon: '🏆',  label: 'Rewards',     emoji: '🏆' }
 ];
 
 export function renderNavigation(user) {
@@ -52,24 +54,42 @@ function renderTopBar(user) {
   
   const initials = getInitials(user?.user_metadata?.display_name || user?.email || '?');
   actions.innerHTML = `
-    <div id="streak-pill" style="display:none;align-items:center;gap:4px;padding:4px 10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:9999px;font-size:12px;font-weight:600;color:var(--accent-amber);"></div>
-    <button class="theme-toggle-btn" aria-label="Toggle Theme" style="border:none;background:none;cursor:pointer;padding:0;font-size:20px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"><span class="theme-toggle-icon">☀️</span></button>
-    <button class="avatar-btn" data-route="#settings" aria-label="Settings" style="border:none; background:none; cursor:pointer; padding:0;margin-left:8px;">
+    <div id="points-pill" style="display:none;align-items:center;gap:4px;padding:4px 10px;background:rgba(20,184,166,0.12);border:1px solid rgba(20,184,166,0.25);border-radius:9999px;font-size:12px;font-weight:600;color:var(--accent-teal);margin-right:8px;cursor:pointer;" onclick="location.hash='#rewards'"></div>
+    <div id="streak-pill" style="display:none;align-items:center;gap:4px;padding:4px 10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:9999px;font-size:12px;font-weight:600;color:var(--accent-amber);margin-right:8px;cursor:pointer;" onclick="location.hash='#rewards'"></div>
+    <div class="theme-switch theme-toggle-btn" aria-label="Toggle Theme" style="margin-right:8px;">
+      <div class="theme-switch-thumb">
+        <span class="theme-toggle-icon">☀️</span>
+      </div>
+    </div>
+    <button class="avatar-btn" aria-label="Profile" style="border:none; background:none; cursor:pointer; padding:0;margin-left:8px;">
       <div class="avatar avatar-sm">${initials}</div>
     </button>
   `;
   
   actions.querySelector('.avatar-btn').addEventListener('click', () => {
-    router.navigate('#settings');
+    showProfileDialog(user);
   });
 
-  // Load streak from profile and show pill
+  // Load streak and points from profile and show pill
   getProfile().then(({ data: profile }) => {
     updateStreakPill(profile?.current_streak || 0);
+    updatePointsPill(profile?.points || 0);
   });
 
-  // Subscribe to STREAK_UPDATED to refresh pill live
+  // Subscribe to updates to refresh pill live
   eventBus.on(EVENTS.STREAK_UPDATED, ({ streak }) => updateStreakPill(streak));
+  eventBus.on('POINTS_UPDATED', ({ points }) => updatePointsPill(points));
+}
+
+function updatePointsPill(points) {
+  const pill = document.getElementById('points-pill');
+  if (!pill) return;
+  if (points > 0) {
+    pill.style.display = 'flex';
+    pill.textContent = `⭐ ${points}`;
+  } else {
+    pill.style.display = 'none';
+  }
 }
 
 function updateStreakPill(streak) {
@@ -140,31 +160,42 @@ function renderSidebar(user) {
     <button
       class="nav-item theme-toggle-btn"
       aria-label="Toggle Theme"
-      style="flex-direction:row;justify-content:flex-start;gap:12px;border-radius:12px;margin-top:auto;"
+      style="flex-direction:row;justify-content:space-between;gap:12px;border-radius:12px;margin-top:auto;"
     >
-      <span class="theme-toggle-icon" style="font-size:18px;" aria-hidden="true">☀️</span>
-      <span style="font-size:14px;font-weight:500;">Toggle Theme</span>
+      <span class="theme-icon-static" style="font-size:18px;" aria-hidden="true">🌓</span>
+      <span class="theme-text" style="font-size:14px;font-weight:500;flex:1;text-align:left;">Theme</span>
+      <div class="theme-switch" style="pointer-events:none;">
+        <div class="theme-switch-thumb">
+          <span class="theme-toggle-icon">☀️</span>
+        </div>
+      </div>
     </button>
 
     <button
-      class="nav-item"
-      data-route="#settings"
-      aria-label="Settings"
+      class="nav-item sidebar-avatar-btn"
+      aria-label="Profile"
       style="flex-direction:row;justify-content:flex-start;gap:12px;border-radius:12px;border-top:1px solid var(--border-subtle);padding-top:16px;margin-top:8px;"
     >
       <div class="avatar avatar-sm" style="flex-shrink:0;">${initials}</div>
       <div class="avatar-details" style="text-align:left;overflow:hidden;white-space:nowrap;">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${name}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Settings</div>
+        <div style="font-size:11px;color:var(--text-muted);">View Profile</div>
       </div>
     </button>
   `;
 
-  sidebar.querySelectorAll('.nav-item').forEach(btn => {
+  sidebar.querySelectorAll('.nav-item:not(.sidebar-avatar-btn)').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.dataset.route) router.navigate(btn.dataset.route);
     });
   });
+
+  const sidebarAvatar = sidebar.querySelector('.sidebar-avatar-btn');
+  if (sidebarAvatar) {
+    sidebarAvatar.addEventListener('click', () => {
+      showProfileDialog(user);
+    });
+  }
 
   const collapseBtn = sidebar.querySelector('#sidebar-collapse-btn');
   if (collapseBtn) {
@@ -182,4 +213,57 @@ function renderSidebar(user) {
 
   // Show sidebar on desktop
   sidebar.hidden = false;
+}
+
+function showProfileDialog(user) {
+  const existing = document.getElementById('profile-dialog');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'profile-dialog';
+  overlay.className = 'modal-overlay';
+  
+  const initials = getInitials(user?.user_metadata?.display_name || user?.email || '?');
+  const name = user?.user_metadata?.display_name || 'NatureGuard User';
+  const email = user?.email || '';
+  
+  overlay.innerHTML = `
+    <div class="modal" style="max-width: 320px; text-align: center; padding: 32px 24px; position: relative;">
+      <button id="close-profile-btn" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:24px; line-height:1;">&times;</button>
+      
+      <div class="avatar avatar-lg" style="margin: 0 auto 16px;">${initials}</div>
+      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:4px;">${name}</h3>
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:24px;">${email}</p>
+      
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button id="open-settings-btn" class="btn btn-secondary btn-full">
+          <span>⚙️</span> Settings
+        </button>
+        <button id="sign-out-btn" class="btn btn-danger btn-full">
+          <span>🚪</span> Sign Out
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  
+  overlay.querySelector('#close-profile-btn').addEventListener('click', () => {
+    overlay.remove();
+  });
+  
+  overlay.querySelector('#open-settings-btn').addEventListener('click', () => {
+    overlay.remove();
+    router.navigate('#settings');
+  });
+  
+  overlay.querySelector('#sign-out-btn').addEventListener('click', async () => {
+    overlay.remove();
+    const { error } = await signOut();
+    if (error) console.error('Sign out error', error);
+  });
 }
