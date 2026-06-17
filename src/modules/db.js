@@ -6,6 +6,7 @@
 
 import { supabase } from '../auth/supabaseClient.js';
 import { getCurrentUser } from '../auth/authService.js';
+import { awardPoints, updateStreakOnLog, checkBadges } from './rewards.js';
 
 // ─────────────────────────────────────────────
 // PROFILES
@@ -27,6 +28,19 @@ export async function updateProfile(changes) {
   return supabase.from('profiles').update(changes).eq('id', user.id).select().single();
 }
 
+/** Increment the user's default AI usage count. */
+export async function incrementAiUsage() {
+  const user = await getCurrentUser();
+  if (!user) return;
+  
+  const { data: profile } = await getProfile();
+  if (!profile) return;
+  
+  return supabase.from('profiles').update({ 
+    ai_usage_count: (profile.ai_usage_count || 0) + 1 
+  }).eq('id', user.id);
+}
+
 // ─────────────────────────────────────────────
 // ACTIVITIES
 // ─────────────────────────────────────────────
@@ -39,11 +53,19 @@ export async function saveActivity(activity) {
   const user = await getCurrentUser();
   if (!user) return { data: null, error: { message: 'Not authenticated' } };
 
-  return supabase.from('activities').insert({
+  const res = await supabase.from('activities').insert({
     user_id: user.id,
     ...activity,
     logged_at: activity.logged_at || new Date().toISOString(),
   }).select().single();
+
+  if (!res.error) {
+    updateStreakOnLog();
+    awardPoints(10, 'Activity logged');
+    checkBadges('activity', { category: activity.category });
+  }
+
+  return res;
 }
 
 /**
@@ -60,7 +82,15 @@ export async function saveActivities(activities) {
     ...a,
   }));
 
-  return supabase.from('activities').insert(rows).select();
+  const res = await supabase.from('activities').insert(rows).select();
+
+  if (!res.error && activities.length > 0) {
+    updateStreakOnLog();
+    awardPoints(10 * activities.length, `${activities.length} activities logged`);
+    activities.forEach(a => checkBadges('activity', { category: a.category }));
+  }
+
+  return res;
 }
 
 /**
@@ -207,7 +237,14 @@ export async function updateActionStatus(id, status) {
   const changes = { status };
   if (status === 'adopted') changes.adopted_at = new Date().toISOString();
 
-  return supabase.from('user_actions').update(changes).eq('id', id).eq('user_id', user.id).select().single();
+  const res = await supabase.from('user_actions').update(changes).eq('id', id).eq('user_id', user.id).select().single();
+
+  if (!res.error && status === 'adopted') {
+    awardPoints(50, 'Action adopted');
+    checkBadges('action_adopted');
+  }
+
+  return res;
 }
 
 // ─────────────────────────────────────────────
