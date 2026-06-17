@@ -80,14 +80,14 @@ export async function render(container) {
 
   // Event listeners
   container.querySelector('#hero-signup-btn').addEventListener('click', () => {
-    router.navigate('#auth');
     // Pre-select sign-up tab
     sessionStorage.setItem('auth_tab', 'signup');
+    location.hash = '#auth';
   });
 
   container.querySelector('#hero-signin-btn').addEventListener('click', () => {
-    router.navigate('#auth');
     sessionStorage.setItem('auth_tab', 'signin');
+    location.hash = '#auth';
   });
 }
 

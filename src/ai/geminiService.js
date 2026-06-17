@@ -4,6 +4,15 @@
  * Handles rate limiting, retries, structured JSON generation, and streaming.
  */
 
+import { getProfile, incrementAiUsage } from '../modules/db.js';
+
+export class DefaultKeyLimitError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'DefaultKeyLimitError';
+  }
+}
+
 class GeminiService {
   constructor() {
     this.apiKey = null;
@@ -23,9 +32,31 @@ class GeminiService {
     this.apiKey = key;
   }
 
-  /** Check if key is configured */
+  /** Check if user has personal key or default key configured */
   isReady() {
-    return !!this.apiKey;
+    return !!this.apiKey || !!import.meta.env.VITE_DEFAULT_GEMINI_KEY;
+  }
+
+  /**
+   * Helper to resolve which API key to use and whether to track usage.
+   * Throws DefaultKeyLimitError if the user exceeded default key limit.
+   */
+  async _resolveKeyAndUsage() {
+    if (this.apiKey) return { key: this.apiKey, isDefault: false };
+
+    const defaultKey = import.meta.env.VITE_DEFAULT_GEMINI_KEY;
+    if (!defaultKey) {
+      throw new Error('Gemini API key is missing. Please configure it in Settings.');
+    }
+
+    const { data: profile } = await getProfile();
+    if (!profile) throw new Error('User profile not loaded.');
+
+    if (profile.ai_usage_count >= 10) {
+      throw new DefaultKeyLimitError('You have reached the 10 free AI requests limit. Please configure your own Gemini API key in Settings.');
+    }
+
+    return { key: defaultKey, isDefault: true };
   }
 
   /** Enforce local rate limit */
@@ -51,12 +82,12 @@ class GeminiService {
    * Core request wrapper with exponential backoff for 429s.
    */
   async _fetchWithRetry(url, options, retries = 3, backoff = 1000) {
-    if (!this.apiKey) throw new Error('Gemini API key is missing. Please configure it in Settings.');
+    const { key, isDefault } = await this._resolveKeyAndUsage();
     
     await this._checkRateLimit();
 
     try {
-      const response = await fetch(`${url}?key=${this.apiKey}`, options);
+      const response = await fetch(`${url}?key=${key}`, options);
       
       if (response.status === 429 && retries > 0) {
         console.warn(`[Gemini] API rate limit (429). Retrying in ${backoff}ms...`);
@@ -68,7 +99,9 @@ class GeminiService {
         const err = await response.json().catch(() => ({}));
         throw new Error(err?.error?.message || `Gemini API error: ${response.status}`);
       }
-      
+      if (isDefault && response.ok && !url.includes('maxOutputTokens=1')) {
+        await incrementAiUsage(); // Don't track usage for validateKey calls
+      }
       return response;
     } catch (error) {
       if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
@@ -173,7 +206,7 @@ class GeminiService {
    * Calls onChunk with each new piece of text.
    */
   async generateStream(prompt, systemInstruction = null, history = [], onChunk) {
-    if (!this.apiKey) throw new Error('Gemini API key is missing. Please configure it in Settings.');
+    const { key, isDefault } = await this._resolveKeyAndUsage();
     await this._checkRateLimit();
 
     const contents = [...history];
@@ -189,7 +222,7 @@ class GeminiService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/${this.model}:streamGenerateContent?alt=sse&key=${this.apiKey}`, {
+      const response = await fetch(`${this.baseUrl}/${this.model}:streamGenerateContent?alt=sse&key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -199,6 +232,8 @@ class GeminiService {
         const errText = await response.text();
         throw new Error(`Streaming failed: ${response.status} - ${errText}`);
       }
+      
+      if (isDefault) await incrementAiUsage();
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf8');

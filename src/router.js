@@ -18,11 +18,12 @@ const routes = {
   '#whatif':     () => import('./views/whatif.js'),
   '#settings':   () => import('./views/settings.js'),
   '#onboarding': () => import('./views/onboarding.js'),
+  '#rewards':    () => import('./views/rewards.js'),
   '#404':        () => import('./views/notFound.js'),
 };
 
 // Routes that require authentication
-const privateRoutes = new Set(['#dashboard', '#log', '#coach', '#actions', '#insights', '#whatif', '#settings', '#onboarding']);
+const privateRoutes = new Set(['#dashboard', '#log', '#coach', '#actions', '#insights', '#whatif', '#settings', '#onboarding', '#rewards']);
 
 const main = document.getElementById('main-content');
 

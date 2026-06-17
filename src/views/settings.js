@@ -3,7 +3,7 @@
  * Manages user profile, AI API key, and preferences.
  */
 
-import { $, $$ } from '../utils/dom.js';
+import { $, $$, getInitials } from '../utils/dom.js';
 import { getProfile, updateProfile } from '../modules/db.js';
 import { getCurrentUser, signOut } from '../auth/authService.js';
 import { geminiService } from '../ai/geminiService.js';
@@ -22,23 +22,68 @@ export async function render(container) {
           <div class="card-skeleton"></div>
         </div>
 
-        <div id="ai-section" class="settings-card">
-          <h2>🤖 AI Configuration</h2>
-          <p class="settings-help">NatureGuard uses Google's Gemini Flash to power natural language logging, coaching, and insights. Your key is stored securely and never shared.</p>
-          
-          <div class="input-group">
-            <label for="api-key">Gemini API Key</label>
-            <div class="api-key-row">
-              <input type="password" id="api-key" placeholder="AIzaSy..." autocomplete="off">
-              <button id="btn-test-key" class="btn btn-secondary">Test & Save</button>
+        <div id="ai-section" style="
+          position:relative;
+          padding: 2px;
+          border-radius: 24px;
+          background: linear-gradient(135deg, rgba(167,139,250,0.4), rgba(45,212,191,0.4), rgba(163,230,53,0.4));
+          background-size: 200% 200%;
+          animation: meshShift 8s ease infinite;
+          margin-bottom: var(--space-6);
+        ">
+          <div style="
+            background: var(--bg-surface);
+            border-radius: 22px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+          ">
+            <!-- Glow effect inside -->
+            <div style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--accent-teal); filter:blur(80px); opacity:0.15; pointer-events:none;"></div>
+            
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+              <div style="width:48px;height:48px;border-radius:14px;background:rgba(45,212,191,0.15);display:flex;align-items:center;justify-content:center;font-size:24px;">✨</div>
+              <div>
+                <h2 style="margin:0; font-size:20px; font-weight:800; background:linear-gradient(90deg, var(--accent-teal), var(--accent-lime)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">NatureGuard AI Brain</h2>
+                <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">Powered by Google Gemini Flash</div>
+              </div>
             </div>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-link">Get a free API key</a>
+
+            <p style="font-size:14px; line-height:1.6; color:var(--text-muted); margin-bottom:24px;">
+              Your AI coach processes natural language logs and generates eco-insights. Your API key is stored securely and never shared.
+            </p>
+
+            <div style="background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:16px; padding:20px; position:relative; z-index:1;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <label for="api-key" style="font-size:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.05em;">API Key Configuration</label>
+                <div id="ai-status" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:rgba(248,113,113,0.15); color:var(--accent-red);">
+                  <span style="width:6px; height:6px; border-radius:50%; background:currentColor;"></span> Offline
+                </div>
+              </div>
+              
+              <div style="display:grid; grid-template-columns: 1fr auto; gap:24px; align-items:stretch;">
+                <div style="position:relative;">
+                  <span style="position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:16px;">🔑</span>
+                  <input type="text" id="api-key" class="input input-masked" placeholder="Enter your Gemini API key..." autocomplete="off" spellcheck="false" style="padding-left:44px; height:100%; min-height:44px; width:100%; background:var(--bg-surface); border:1px solid var(--border-default); border-radius:12px; transition:all 0.3s; color:var(--text-primary);">
+                </div>
+                <button id="btn-test-key" class="btn btn-teal" style="border-radius:12px; padding:0 32px; font-weight:700;">
+                  Connect AI
+                </button>
+              </div>
+              
+              <div style="margin-top:16px; font-size:12px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:var(--text-muted);">Don't have a key?</span>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent-teal); font-weight:600; text-decoration:none; display:flex; align-items:center; gap:4px; transition:color 0.2s;">
+                  Get one for free ↗
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="settings-card danger-zone">
           <h2>Account</h2>
-          <button id="btn-signout" class="btn btn-outline text-danger">Sign Out</button>
+          <button id="btn-signout" class="btn btn-danger">Sign Out</button>
         </div>
       </div>
     </div>
@@ -74,12 +119,15 @@ export async function render(container) {
     </div>
   `).join('');
 
+  const displayName = profile?.display_name || user?.user_metadata?.display_name || 'Eco Warrior';
+  const initials = getInitials(displayName !== 'Eco Warrior' ? displayName : user?.email || '?');
+
   profileSection.innerHTML = `
     <h2>Profile</h2>
     <div class="profile-info" style="margin-bottom:20px;">
-      <div class="profile-avatar">${user?.email?.charAt(0).toUpperCase() || '?'}</div>
+      <div class="profile-avatar">${initials}</div>
       <div class="profile-details">
-        <div class="profile-name">${profile?.display_name || 'Eco Warrior'}</div>
+        <div class="profile-name">${displayName}</div>
         <div class="profile-email">${user?.email || ''}</div>
       </div>
     </div>
@@ -194,9 +242,31 @@ export async function render(container) {
 
   const apiKeyInput = $('#api-key', container);
   const testBtn = $('#btn-test-key', container);
+  const aiStatus = $('#ai-status', container);
+
+  function updateAiStatus(status, usage = 0) {
+    if (status === 'personal') {
+      aiStatus.style.background = 'rgba(163,230,53,0.15)';
+      aiStatus.style.color = 'var(--accent-lime)';
+      aiStatus.innerHTML = '<span style="width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor;"></span> Personal Key (Unlimited)';
+    } else if (status === 'default') {
+      aiStatus.style.background = 'rgba(245,158,11,0.15)';
+      aiStatus.style.color = 'var(--accent-amber)';
+      aiStatus.innerHTML = `<span style="width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor;"></span> Default Key (${usage}/10)`;
+    } else {
+      aiStatus.style.background = 'rgba(248,113,113,0.15)';
+      aiStatus.style.color = 'var(--accent-red)';
+      aiStatus.innerHTML = '<span style="width:6px; height:6px; border-radius:50%; background:currentColor;"></span> Offline';
+    }
+  }
 
   if (profile?.gemini_api_key) {
     apiKeyInput.value = profile.gemini_api_key;
+    updateAiStatus('personal');
+  } else if (import.meta.env.VITE_DEFAULT_GEMINI_KEY) {
+    updateAiStatus('default', profile?.ai_usage_count || 0);
+  } else {
+    updateAiStatus('offline');
   }
 
   // Handle API Key Test & Save
@@ -220,16 +290,19 @@ export async function render(container) {
         
         // Update local service
         geminiService.setApiKey(key);
+        updateAiStatus('personal');
         toastSuccess('API Key saved successfully!');
       } else {
+        updateAiStatus('offline');
         toastError('Invalid API Key. Please check and try again.');
       }
     } catch (err) {
+      updateAiStatus('offline');
       toastError('Error saving key.');
       console.error(err);
     } finally {
       testBtn.disabled = false;
-      testBtn.textContent = 'Test & Save';
+      testBtn.textContent = 'Connect AI';
     }
   });
 
