@@ -3,7 +3,7 @@
  * Contextual chat interface using Gemini streaming.
  */
 
-import { $, $$ } from '../utils/dom.js';
+import { $, $$, escapeHTML } from '../utils/dom.js';
 import { sendChatMessage } from '../ai/coach.js';
 import { getProfile } from '../modules/db.js';
 import { toastError } from '../utils/toast.js';
@@ -204,8 +204,8 @@ function scrollToBottom(el) {
 
 /** Basic Markdown formatter for chat bubbles (handles bold and newlines) */
 function formatMarkdown(text) {
-  // Escape HTML
-  let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Escape HTML securely
+  let html = escapeHTML(text);
   
   // Bold
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');

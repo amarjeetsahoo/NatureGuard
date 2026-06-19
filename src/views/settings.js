@@ -22,14 +22,13 @@ export async function render(container) {
           <div class="card-skeleton"></div>
         </div>
 
-        <div id="ai-section" style="
+        <div id="ai-section" class="mb-6 p-0" style="
           position:relative;
           padding: 2px;
           border-radius: 24px;
           background: linear-gradient(135deg, rgba(167,139,250,0.4), rgba(45,212,191,0.4), rgba(163,230,53,0.4));
           background-size: 200% 200%;
           animation: meshShift 8s ease infinite;
-          margin-bottom: var(--space-6);
         ">
           <div style="
             background: var(--bg-surface);
@@ -41,22 +40,22 @@ export async function render(container) {
             <!-- Glow effect inside -->
             <div style="position:absolute; top:-50px; right:-50px; width:150px; height:150px; background:var(--accent-teal); filter:blur(80px); opacity:0.15; pointer-events:none;"></div>
             
-            <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
-              <div style="width:48px;height:48px;border-radius:14px;background:rgba(45,212,191,0.15);display:flex;align-items:center;justify-content:center;font-size:24px;">✨</div>
+            <div class="flex items-center gap-4 mb-4">
+              <div class="flex items-center justify-center text-2xl" style="width:48px;height:48px;border-radius:14px;background:rgba(45,212,191,0.15);">✨</div>
               <div>
-                <h2 style="margin:0; font-size:20px; font-weight:800; background:linear-gradient(90deg, var(--accent-teal), var(--accent-lime)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">NatureGuard AI Brain</h2>
-                <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">Powered by Google Gemini Flash</div>
+                <h2 class="m-0 font-bold" style="font-size:20px; background:linear-gradient(90deg, var(--accent-teal), var(--accent-lime)); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">NatureGuard AI Brain</h2>
+                <div class="text-sm text-secondary mt-2">Powered by Google Gemini Flash</div>
               </div>
             </div>
 
-            <p style="font-size:14px; line-height:1.6; color:var(--text-muted); margin-bottom:24px;">
+            <p class="text-sm text-muted mb-6" style="line-height:1.6;">
               Your AI coach processes natural language logs and generates eco-insights. Your API key is stored securely and never shared.
             </p>
 
-            <div style="background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:16px; padding:20px; position:relative; z-index:1;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <label for="api-key" style="font-size:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.05em;">API Key Configuration</label>
-                <div id="ai-status" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:rgba(248,113,113,0.15); color:var(--accent-red);">
+            <div class="p-4" style="background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:16px; position:relative; z-index:1;">
+              <div class="flex justify-between items-center mb-3">
+                <label for="api-key" class="text-xs font-bold text-primary" style="text-transform:uppercase; letter-spacing:0.05em;">API Key Configuration</label>
+                <div id="ai-status" class="flex items-center gap-2 text-xs font-semibold" style="padding:4px 10px; border-radius:999px; background:rgba(248,113,113,0.15); color:var(--accent-red);">
                   <span style="width:6px; height:6px; border-radius:50%; background:currentColor;"></span> Offline
                 </div>
               </div>
@@ -84,12 +83,14 @@ export async function render(container) {
         <div class="settings-card danger-zone">
           <h2>Security & Account</h2>
           
-          <div style="margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid var(--border-subtle);">
-            <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text-primary);">Change Password</h3>
-            <form id="change-password-form" style="display:flex; flex-direction:column; gap:12px;" novalidate>
+          <div class="mb-6 p-0" style="padding-bottom:24px; border-bottom:1px solid var(--border-subtle);">
+            <h3 class="text-sm font-semibold mb-3 text-primary">Change Password</h3>
+            <form id="change-password-form" class="flex flex-col gap-3" novalidate>
+              <label for="new-password" class="sr-only" style="display:none;">New Password</label>
               <input type="password" id="new-password" class="input" placeholder="New password (min 6 chars)" required minlength="6" autocomplete="new-password">
+              <label for="confirm-password" class="sr-only" style="display:none;">Confirm Password</label>
               <input type="password" id="confirm-password" class="input" placeholder="Confirm new password" required minlength="6" autocomplete="new-password">
-              <p id="password-match-hint" style="font-size:12px; color:var(--accent-red); margin:0; display:none;">Passwords do not match.</p>
+              <p id="password-match-hint" class="text-xs mt-0" style="color:var(--accent-red); display:none;">Passwords do not match.</p>
               <button type="submit" id="btn-update-password" class="btn btn-secondary">Update Password</button>
             </form>
           </div>
@@ -147,21 +148,21 @@ export async function render(container) {
 
     <!-- Streak stats -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
-      <div style="text-align:center;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:12px;">
+      <div class="text-center p-3" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:12px;">
         <div style="font-family:var(--font-display);font-size:28px;color:var(--accent-amber);">${streak}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Current Streak 🔥</div>
+        <div class="text-xs text-muted mt-2">Current Streak 🔥</div>
       </div>
-      <div style="text-align:center;padding:12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:12px;">
+      <div class="text-center p-3" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:12px;">
         <div style="font-family:var(--font-display);font-size:28px;color:var(--accent-purple);">${longest}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Best Streak 🏆</div>
+        <div class="text-xs text-muted mt-2">Best Streak 🏆</div>
       </div>
     </div>
 
     <!-- Badge collection -->
-    <h3 style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">
+    <h3 class="text-sm font-semibold text-muted mb-3" style="text-transform:uppercase;letter-spacing:.05em;">
       Badges (${earnedKeys.size}/${badgesArray.length})
     </h3>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+    <div class="flex flex-row" style="flex-wrap:wrap;gap:10px;">
       ${badgesHTML}
     </div>
 

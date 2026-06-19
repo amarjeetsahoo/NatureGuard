@@ -229,7 +229,7 @@ function showProfileDialog(user) {
   
   overlay.innerHTML = `
     <div class="modal" style="max-width: 320px; text-align: center; padding: 32px 24px; position: relative;">
-      <button id="close-profile-btn" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:24px; line-height:1;">&times;</button>
+      <button id="close-profile-btn" aria-label="Close profile" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:24px; line-height:1;">&times;</button>
       
       <div class="avatar avatar-lg" style="margin: 0 auto 16px;">${initials}</div>
       <h3 style="font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:4px;">${name}</h3>

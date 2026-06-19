@@ -72,7 +72,8 @@ export async function render(container) {
 
       <!-- Footer -->
       <footer style="padding:var(--space-8) var(--content-pad);text-align:center;border-top:1px solid var(--border-subtle);color:var(--text-muted);font-size:var(--text-sm);">
-        <p>NatureGuard &copy; 2025 · Built with 💚 for the planet</p>
+        <p>NatureGuard &copy; 2026 · Built with 💚 for the planet</p>
+        <p style="margin-top:var(--space-2);color:var(--text-secondary);">· amarjeetsahoo</p>
       </footer>
 
     </div>
