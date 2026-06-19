@@ -9,6 +9,7 @@ import { getProfile } from '../modules/db.js';
 import { calculateTransport, calculateFood } from '../modules/calculator.js';
 import { formatCO2 } from '../modules/humanizer.js';
 import { toastError } from '../utils/toast.js';
+import { setupVoiceInput } from '../utils/voice.js';
 
 export async function render(container) {
   const { data: profile } = await getProfile();
@@ -23,7 +24,30 @@ export async function render(container) {
       <div class="card" style="margin-bottom:24px; border:1px solid rgba(163,230,53,0.3);">
         <h3 style="font-size:15px; font-weight:600; margin-bottom:12px;">Hypothesis</h3>
         <form id="whatif-form" style="display:flex; flex-direction:column; gap:12px;">
-          <textarea id="scenario-input" class="input textarea" placeholder="e.g. What if I switch to an electric car for my 20km commute?" rows="3"></textarea>
+          <div>
+            <textarea id="scenario-input" class="input textarea" placeholder="e.g. What if I switch to an electric car for my 20km commute?" rows="3"></textarea>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:-4px;">
+            <span id="whatif-voice-status" style="font-size:11px;color:var(--text-muted);">AI will simulate the scenario.</span>
+            <button
+              id="whatif-voice-btn"
+              type="button"
+              aria-label="Start voice input"
+              title="Speak your scenario"
+              style="
+                flex-shrink:0;
+                width:36px;height:36px;
+                border-radius:50%;
+                background:var(--glass-bg);
+                border:1.5px solid var(--border-default);
+                cursor:pointer;
+                display:flex;align-items:center;justify-content:center;
+                font-size:16px;
+                transition:all 0.2s ease;
+                color:var(--text-primary);
+              "
+            >🎙️</button>
+          </div>
           <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;" class="scroll-hide">
             <button type="button" class="chip suggestion" data-text="What if I ate a vegan diet for 7 days?">Vegan Diet</button>
             <button type="button" class="chip suggestion" data-text="What if I take the bus for 15km instead of driving?">Take the Bus</button>
@@ -43,6 +67,10 @@ export async function render(container) {
   const input = container.querySelector('#scenario-input');
   const btn = container.querySelector('#simulate-btn');
   const resultsArea = container.querySelector('#results-area');
+  const voiceBtn = container.querySelector('#whatif-voice-btn');
+  const voiceStatus = container.querySelector('#whatif-voice-status');
+
+  setupVoiceInput(voiceBtn, input, voiceStatus, 'AI will simulate the scenario.');
 
   container.querySelectorAll('.suggestion').forEach(chip => {
     chip.addEventListener('click', () => {
