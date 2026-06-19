@@ -9,6 +9,7 @@ import '../css/animations.css';
 import '../css/components.css';
 import '../css/views.css';
 
+import { injectSpeedInsights } from '@vercel/speed-insights';
 import { supabase } from './auth/supabaseClient.js';
 import { onAuthChange, getCurrentSession } from './auth/authService.js';
 import { router } from './router.js';
@@ -20,6 +21,7 @@ import { eventBus, EVENTS } from './modules/eventBus.js';
 import { confettiBurst } from './utils/confetti.js';
 
 async function boot() {
+  injectSpeedInsights(); // Vercel Speed Insights — no-op in dev, active on Vercel
   initToasts();
 
   // Register Service Worker for PWA
