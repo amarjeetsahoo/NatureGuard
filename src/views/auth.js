@@ -3,7 +3,7 @@
  * Sign In / Sign Up / Magic Link
  */
 
-import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithMagicLink } from '../auth/authService.js';
+import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithMagicLink, resetPasswordForEmail } from '../auth/authService.js';
 import { toastSuccess, toastError } from '../utils/toast.js';
 
 export async function render(container) {
@@ -68,7 +68,10 @@ export async function render(container) {
               />
             </div>
             <div class="input-group">
-              <label class="input-label" for="signin-password">Password</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3);">
+                <label class="input-label" for="signin-password" style="margin-bottom:0;">Password</label>
+                <button type="button" id="forgot-password-link" style="background:none;border:none;color:var(--accent-teal);font-size:12px;font-weight:600;cursor:pointer;padding:0;">Forgot Password?</button>
+              </div>
               <input
                 id="signin-password"
                 class="input"
@@ -89,6 +92,31 @@ export async function render(container) {
           <button id="magic-link-btn" class="btn btn-secondary btn-full" type="button">
             ✉️ Send Magic Link
           </button>
+        </div>
+
+        <!-- Forgot Password Panel -->
+        <div id="panel-forgot-password" hidden>
+          <div style="margin-bottom:20px;text-align:center;">
+            <h3 style="font-size:18px;font-weight:600;color:var(--text-primary);">Reset Password</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin-top:8px;">If an account exists with this email, we will send a recovery link.</p>
+          </div>
+          <form id="forgot-password-form" class="auth-form" novalidate>
+            <div class="input-group">
+              <label class="input-label" for="forgot-email">Email</label>
+              <input
+                id="forgot-email"
+                class="input"
+                type="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+              />
+            </div>
+            <button id="forgot-submit" class="btn btn-primary btn-full" type="submit">
+              <span class="btn-text">Send Reset Link</span>
+            </button>
+          </form>
+          <button id="back-to-signin-btn" style="background:none;border:none;color:var(--text-muted);font-size:14px;cursor:pointer;margin-top:16px;width:100%;">← Back to Sign In</button>
         </div>
 
         <!-- Sign Up Panel -->
@@ -161,6 +189,7 @@ export async function render(container) {
   setupSignUp(container);
   setupGoogleAuth(container);
   setupMagicLink(container);
+  setupForgotPassword(container);
 }
 
 function setupTabSwitcher(container) {
@@ -245,5 +274,46 @@ function setupMagicLink(container) {
 
     if (error) toastError(error.message);
     else toastSuccess('Magic link sent! Check your inbox ✨');
+  });
+}
+
+function setupForgotPassword(container) {
+  const link = container.querySelector('#forgot-password-link');
+  const backBtn = container.querySelector('#back-to-signin-btn');
+  const panelSignin = container.querySelector('#panel-signin');
+  const panelForgot = container.querySelector('#panel-forgot-password');
+  const form = container.querySelector('#forgot-password-form');
+  const btn = container.querySelector('#forgot-submit');
+  const tabSwitcher = container.querySelector('[role="tablist"]');
+
+  link.addEventListener('click', () => {
+    panelSignin.hidden = true;
+    tabSwitcher.hidden = true;
+    panelForgot.hidden = false;
+  });
+
+  backBtn.addEventListener('click', () => {
+    panelForgot.hidden = true;
+    panelSignin.hidden = false;
+    tabSwitcher.hidden = false;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = container.querySelector('#forgot-email').value.trim();
+    if (!email) { toastError('Please enter your email'); return; }
+
+    btn.classList.add('loading');
+    const { error } = await resetPasswordForEmail(email);
+    btn.classList.remove('loading');
+
+    if (error) {
+      toastError(error.message);
+    } else {
+      toastSuccess('Password reset link sent! Check your email.');
+      panelForgot.hidden = true;
+      panelSignin.hidden = false;
+      tabSwitcher.hidden = false;
+    }
   });
 }

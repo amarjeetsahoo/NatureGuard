@@ -17,7 +17,6 @@ import { initToasts, toastSuccess } from './utils/toast.js';
 import { getProfile } from './modules/db.js';
 import { geminiService } from './ai/geminiService.js';
 import { eventBus, EVENTS } from './modules/eventBus.js';
-import { onActivityLogged } from './modules/streak.js';
 import { confettiBurst } from './utils/confetti.js';
 
 async function boot() {
@@ -38,45 +37,61 @@ async function boot() {
     document.documentElement.classList.add('theme-light');
   }
 
+  // Capture the hash synchronously before Supabase auto-strips it during getSession()
+  const initialHash = location.hash;
+
+  // Helper to determine route after auth
+  const getPostAuthRoute = () => {
+    // Check initialHash as well as current hash, since Supabase might clear it
+    const hash = location.hash || initialHash;
+    const fullUrl = location.href;
+    
+    if (fullUrl.includes('type=recovery') || hash.includes('type=recovery')) {
+      import('./utils/toast.js').then(m => m.toastSuccess('Please update your password below.'));
+      return '#settings';
+    }
+    if (!hash || hash === '' || hash === '#auth' || hash.includes('access_token=')) {
+      return '#dashboard';
+    }
+    return hash;
+  };
+
   // 1. Check for an existing session IMMEDIATELY on load
   const existingSession = await getCurrentSession();
 
   if (existingSession) {
-    await handleLoginSuccess(existingSession.user);
-    await router.navigate(location.hash && location.hash !== '#landing' && location.hash !== '#auth'
-      ? location.hash
-      : '#dashboard'
-    );
+    const handledRouting = await handleLoginSuccess(existingSession.user);
+    if (!handledRouting) {
+      await router.navigate(getPostAuthRoute());
+    }
   } else {
     hideAuthenticatedUI();
-    await router.navigate('#landing');
+    // Do not route to landing if trying to auth with a token
+    if (!location.hash.includes('access_token=')) {
+      await router.navigate('');
+    }
   }
 
   // 2. Subscribe to auth state changes for login/logout events
   onAuthChange(async (session) => {
     if (session) {
-      await handleLoginSuccess(session.user);
-      const hash = location.hash;
-      if (!hash || hash === '#landing' || hash === '#auth') {
-        await router.navigate('#dashboard');
+      const handledRouting = await handleLoginSuccess(session.user);
+      if (!handledRouting) {
+        const targetRoute = getPostAuthRoute();
+        if (targetRoute !== router.currentRoute) {
+          await router.navigate(targetRoute);
+        }
       }
     } else {
       geminiService.setApiKey(null);
       hideAuthenticatedUI();
-      await router.navigate('#landing');
+      await router.navigate('');
     }
   });
 
   // 3. Handle browser back/forward navigation
   window.addEventListener('hashchange', () => {
     router.navigate(location.hash);
-  });
-
-  // 4. Streak engine — fires whenever any view logs an activity
-  eventBus.on(EVENTS.ACTIVITY_LOGGED, async () => {
-    const { newStreak, newBadges } = await onActivityLogged();
-    // Refresh streak display in nav
-    eventBus.emit(EVENTS.STREAK_UPDATED, { streak: newStreak });
   });
 
   // 5. Badge earned — show a special toast + confetti
@@ -113,6 +128,30 @@ async function handleLoginSuccess(user) {
   if (profile?.gemini_api_key) {
     geminiService.setApiKey(profile.gemini_api_key);
   }
+
+  // If this is a brand-new Google OAuth user who has never completed onboarding,
+  // route them there so they get a personalized setup experience.
+  // We only do this for Google users (provider = 'google') to avoid breaking
+  // existing email/password users who may have a null 'onboarded' value.
+  const isGoogleUser = user?.app_metadata?.provider === 'google';
+  if (isGoogleUser && !profile?.onboarded) {
+    // Pre-seed their display name from Google OAuth metadata
+    const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+    if (googleName && !profile?.display_name) {
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        display_name: googleName,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    }
+    // Only navigate to onboarding if we aren't already there
+    if (router.currentRoute !== '#onboarding') {
+      await router.navigate('#onboarding');
+    }
+    return true; // Signal: we already handled routing
+  }
+
+  return false; // Signal: caller should handle routing
 }
 
 function hideAuthenticatedUI() {
