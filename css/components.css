@@ -71,6 +71,17 @@
 }
 .btn-danger:hover { background: rgba(248, 113, 113, 0.25); }
 
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+.btn-outline:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
 .btn-sm { padding: var(--space-2) var(--space-4); font-size: var(--text-sm); }
 .btn-lg { padding: var(--space-4) var(--space-8); font-size: var(--text-md); }
 .btn-icon { padding: var(--space-3); border-radius: var(--radius-md); }
@@ -94,7 +105,7 @@
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-6);
+  padding: clamp(var(--space-4), 5vw, var(--space-6));
   backdrop-filter: blur(var(--glass-blur));
   position: relative;
   overflow: hidden;
@@ -215,11 +226,11 @@
 /* ── Toast notifications ── */
 #toast-container {
   position: fixed;
-  bottom: calc(var(--nav-height) + var(--space-4));
-  right: var(--space-4);
+  bottom: calc(var(--nav-height, 64px) + var(--space-4, 16px) + env(safe-area-inset-bottom, 0px));
+  right: var(--space-4, 16px);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-2, 8px);
   z-index: var(--z-toast);
   pointer-events: none;
 }
@@ -245,6 +256,19 @@
 .toast-info    { border-color: rgba(45,212,191,0.3); }
 .toast-badge   { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.08); min-width: 260px; }
 .toast-icon    { font-size: 18px; flex-shrink: 0; }
+
+@media (max-width: 480px) {
+  #toast-container {
+    right: var(--space-4, 16px);
+    left: var(--space-4, 16px);
+    bottom: calc(var(--nav-height, 64px) + var(--space-3, 12px) + env(safe-area-inset-bottom, 0px));
+    align-items: center;
+  }
+  .toast {
+    max-width: 100%;
+    width: 100%;
+  }
+}
 
 /* ── Loading Spinner ── */
 .spinner {
@@ -290,7 +314,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
-  padding: var(--space-8);
+  padding: clamp(var(--space-5), 6vw, var(--space-8));
   width: 100%;
   max-width: 480px;
   box-shadow: var(--shadow-lg);

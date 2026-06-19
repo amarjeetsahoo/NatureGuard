@@ -132,8 +132,8 @@ async function loadActions(container) {
         ${a.description}
       </p>
       
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-primary btn-sm btn-adopt" data-key="${a.key}" data-title="${a.title}" data-co2="${a.co2SavedEstimate}" style="flex:1;">Adopt</button>
+      <div class="action-card-buttons">
+        <button class="btn btn-primary btn-sm btn-adopt" data-key="${a.key}" data-title="${a.title}" data-co2="${a.co2SavedEstimate}">Adopt</button>
         <button class="btn btn-outline btn-sm btn-dismiss" data-key="${a.key}" data-title="${a.title}" data-co2="${a.co2SavedEstimate}">Dismiss</button>
       </div>
     </div>
