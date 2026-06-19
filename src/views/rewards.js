@@ -28,7 +28,7 @@ async function loadRewards(container) {
   const levelInfo = getLevel(points);
   const progressPercent = Math.min(100, Math.floor((points / levelInfo.nextThreshold) * 100));
 
-  const badgesUnlocked = Array.isArray(prof.badges) ? prof.badges : [];
+  const badgesUnlocked = (Array.isArray(prof.badges) ? prof.badges : []).map(b => typeof b === 'string' ? b : (b.key || b.id));
 
   const html = `
     <header class="view-header">
@@ -73,7 +73,7 @@ async function loadRewards(container) {
 
     <!-- Badges Grid -->
     <h2 style="font-size:15px; font-weight:600; margin-bottom:16px;">Badges</h2>
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:12px;" class="animate-fadeInUp" style="animation-delay:200ms;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:12px; animation-delay:200ms;" class="animate-fadeInUp">
       ${Object.values(BADGES).map(badge => {
         const isUnlocked = badgesUnlocked.includes(badge.id);
         return `

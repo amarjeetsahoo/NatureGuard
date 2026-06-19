@@ -72,7 +72,7 @@ export async function checkBadges(actionType, meta = {}) {
   const { data: prof } = await getRewardsProfile();
   if (!prof) return;
 
-  let badges = Array.isArray(prof.badges) ? prof.badges : [];
+  let badges = (Array.isArray(prof.badges) ? prof.badges : []).map(b => typeof b === 'string' ? b : (b.key || b.id));
   let newBadges = [];
 
   const addBadge = (badgeId) => {
@@ -108,6 +108,7 @@ export async function checkBadges(actionType, meta = {}) {
   if (newBadges.length > 0) {
     await updateRewardsProfile({ badges });
     newBadges.forEach(b => {
+      eventBus.emit('badge:earned', BADGES[b]);
       setTimeout(() => toastSuccess(`🏆 Badge Unlocked: ${BADGES[b].title}!`), 500);
     });
   }
@@ -147,6 +148,8 @@ export async function updateStreakOnLog() {
     longest_streak: newLongest,
     last_logged_date: today
   });
+
+  eventBus.emit('streak:updated', { streak: newStreak, longest: newLongest });
 
   if (newStreak > (prof.current_streak || 0) && newStreak > 1) {
     setTimeout(() => toastSuccess(`🔥 ${newStreak} Day Streak! Keep it up!`), 1000);

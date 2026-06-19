@@ -5,10 +5,10 @@
 
 import { $, $$, getInitials } from '../utils/dom.js';
 import { getProfile, updateProfile } from '../modules/db.js';
-import { getCurrentUser, signOut } from '../auth/authService.js';
+import { getCurrentUser, signOut, updateUserPassword } from '../auth/authService.js';
 import { geminiService } from '../ai/geminiService.js';
 import { toastSuccess, toastError } from '../utils/toast.js';
-import { BADGE_DEFS } from '../modules/streak.js';
+import { BADGES } from '../modules/rewards.js';
 
 export async function render(container) {
   container.innerHTML = `
@@ -61,12 +61,12 @@ export async function render(container) {
                 </div>
               </div>
               
-              <div style="display:grid; grid-template-columns: 1fr auto; gap:24px; align-items:stretch;">
+              <div class="settings-api-grid">
                 <div style="position:relative;">
                   <span style="position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:16px;">🔑</span>
                   <input type="text" id="api-key" class="input input-masked" placeholder="Enter your Gemini API key..." autocomplete="off" spellcheck="false" style="padding-left:44px; height:100%; min-height:44px; width:100%; background:var(--bg-surface); border:1px solid var(--border-default); border-radius:12px; transition:all 0.3s; color:var(--text-primary);">
                 </div>
-                <button id="btn-test-key" class="btn btn-teal" style="border-radius:12px; padding:0 32px; font-weight:700;">
+                <button id="btn-test-key" class="btn btn-teal" style="border-radius:12px; padding:12px 32px; font-weight:700; width:100%;">
                   Connect AI
                 </button>
               </div>
@@ -82,7 +82,19 @@ export async function render(container) {
         </div>
 
         <div class="settings-card danger-zone">
-          <h2>Account</h2>
+          <h2>Security & Account</h2>
+          
+          <div style="margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid var(--border-subtle);">
+            <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text-primary);">Change Password</h3>
+            <form id="change-password-form" style="display:flex; flex-direction:column; gap:12px;" novalidate>
+              <input type="password" id="new-password" class="input" placeholder="New password (min 6 chars)" required minlength="6" autocomplete="new-password">
+              <input type="password" id="confirm-password" class="input" placeholder="Confirm new password" required minlength="6" autocomplete="new-password">
+              <p id="password-match-hint" style="font-size:12px; color:var(--accent-red); margin:0; display:none;">Passwords do not match.</p>
+              <button type="submit" id="btn-update-password" class="btn btn-secondary">Update Password</button>
+            </form>
+          </div>
+
+          <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--accent-red);">Danger Zone</h3>
           <button id="btn-signout" class="btn btn-danger">Sign Out</button>
         </div>
       </div>
@@ -97,25 +109,26 @@ export async function render(container) {
   const profileSection = $('#profile-section', container);
   const streak  = profile?.current_streak  || 0;
   const longest = profile?.longest_streak  || 0;
-  const earned  = profile?.badges          || [];
-  const earnedKeys = new Set(earned.map(b => b.key));
+  const earned  = (Array.isArray(profile?.badges) ? profile.badges : []).map(b => typeof b === 'string' ? b : (b.key || b.id));
+  const earnedKeys = new Set(earned);
 
-  const badgesHTML = BADGE_DEFS.map(def => `
+  const badgesArray = Object.values(BADGES);
+  const badgesHTML = badgesArray.map(def => `
     <div
       title="${def.title}: ${def.desc}"
       style="
         display:flex;flex-direction:column;align-items:center;gap:6px;
         padding:10px;border-radius:12px;
-        background:${earnedKeys.has(def.key) ? 'rgba(163,230,53,0.08)' : 'var(--glass-bg)'};
-        border:1px solid ${earnedKeys.has(def.key) ? 'rgba(163,230,53,0.25)' : 'var(--border-subtle)'};
-        opacity:${earnedKeys.has(def.key) ? '1' : '0.35'};
+        background:${earnedKeys.has(def.id) ? 'rgba(163,230,53,0.08)' : 'var(--glass-bg)'};
+        border:1px solid ${earnedKeys.has(def.id) ? 'rgba(163,230,53,0.25)' : 'var(--border-subtle)'};
+        opacity:${earnedKeys.has(def.id) ? '1' : '0.35'};
         transition:all 0.3s;
         flex:1;min-width:72px;max-width:90px;text-align:center;
       "
     >
       <span style="font-size:28px;">${def.icon}</span>
       <span style="font-size:10px;font-weight:600;color:var(--text-secondary);line-height:1.3;">${def.title}</span>
-      ${earnedKeys.has(def.key) ? `<span style="font-size:9px;color:var(--accent-lime);">Earned ✓</span>` : `<span style="font-size:9px;color:var(--text-disabled);">Locked</span>`}
+      ${earnedKeys.has(def.id) ? `<span style="font-size:9px;color:var(--accent-lime);">Earned ✓</span>` : `<span style="font-size:9px;color:var(--text-disabled);">Locked</span>`}
     </div>
   `).join('');
 
@@ -146,7 +159,7 @@ export async function render(container) {
 
     <!-- Badge collection -->
     <h3 style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">
-      Badges (${earnedKeys.size}/${BADGE_DEFS.length})
+      Badges (${earnedKeys.size}/${badgesArray.length})
     </h3>
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
       ${badgesHTML}
@@ -304,6 +317,71 @@ export async function render(container) {
       testBtn.disabled = false;
       testBtn.textContent = 'Connect AI';
     }
+  });
+
+  // Handle Change Password — with double-submit guard
+  let passwordUpdateInFlight = false;
+  $('#change-password-form', container).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (passwordUpdateInFlight) return; // Guard against double-submit
+
+    const btn = $('#btn-update-password', container);
+    const newPwdInput = $('#new-password', container);
+    const confirmPwdInput = $('#confirm-password', container);
+    const newPassword = newPwdInput.value;
+    const confirmPassword = confirmPwdInput.value;
+    const hint = $('#password-match-hint', container);
+
+    // Client-side validation: passwords must match
+    if (newPassword !== confirmPassword) {
+      hint.style.display = 'block';
+      return;
+    }
+    hint.style.display = 'none';
+
+    if (newPassword.length < 6) {
+      toastError('Password must be at least 6 characters.');
+      return;
+    }
+
+    // Lock the form to prevent double-submission
+    passwordUpdateInFlight = true;
+    btn.disabled = true;
+    newPwdInput.disabled = true;
+    confirmPwdInput.disabled = true;
+    btn.classList.add('loading');
+
+    const { error } = await updateUserPassword(newPassword);
+
+    // Unlock form
+    passwordUpdateInFlight = false;
+    btn.disabled = false;
+    newPwdInput.disabled = false;
+    confirmPwdInput.disabled = false;
+    btn.classList.remove('loading');
+
+    if (error) {
+      if (error.code === 'same_password') {
+        toastError('New password must be different from your current password.');
+        newPwdInput.style.borderColor = 'var(--accent-red)';
+        newPwdInput.focus();
+        newPwdInput.addEventListener('input', () => { newPwdInput.style.borderColor = ''; }, { once: true });
+      } else {
+        toastError(error.message);
+      }
+    } else {
+      toastSuccess('Password updated successfully! 🔒');
+      newPwdInput.value = '';
+      confirmPwdInput.value = '';
+    }
+  });
+
+  // Live confirm-password match hint
+  $('#confirm-password', container).addEventListener('input', () => {
+    const newPwd = $('#new-password', container).value;
+    const confirmPwd = $('#confirm-password', container).value;
+    const hint = $('#password-match-hint', container);
+    hint.style.display = confirmPwd && newPwd !== confirmPwd ? 'block' : 'none';
   });
 
   // Handle Sign Out

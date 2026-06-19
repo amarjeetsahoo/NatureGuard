@@ -10,8 +10,8 @@ import {
 import { calculateScore, getGrade, getScoreColor, ringOffset, getScoreLabel } from '../modules/score.js';
 import { formatCO2, humanize, treesEquivalent } from '../modules/humanizer.js';
 import { router } from '../router.js';
+import { BADGES } from '../modules/rewards.js';
 import { eventBus, EVENTS } from '../modules/eventBus.js';
-import { BADGE_DEFS } from '../modules/streak.js';
 import { showLoader, hideLoader } from '../utils/loader.js';
 
 const CATEGORY_META = {
@@ -26,19 +26,18 @@ const CATEGORY_META = {
 export async function render(container) {
   container.innerHTML = `
     <div class="view" id="dashboard-view">
-      <div class="view-header">
+      <div class="dashboard-header">
         <div>
           <p class="view-greeting" id="dash-greeting">Loading...</p>
-          <h1 class="view-title">Your Footprint</h1>
+          <h1 class="view-title" style="margin:0;">Your Footprint</h1>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div class="dashboard-controls">
           <div class="period-toggle" role="group" aria-label="Time period">
             <button class="period-btn active" data-period="week"  aria-pressed="true">Week</button>
             <button class="period-btn"        data-period="month" aria-pressed="false">Month</button>
             <button class="period-btn"        data-period="today" aria-pressed="false">Today</button>
           </div>
           <button id="btn-share" class="btn btn-secondary" style="padding:6px 12px;font-size:13px;border-radius:20px;" aria-label="Share Dashboard">Share 📸</button>
-
         </div>
       </div>
 
@@ -48,7 +47,7 @@ export async function render(container) {
       </div>
 
       <!-- Score Ring + Main Chart -->
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:16px;align-items:stretch;" id="main-charts">
+      <div class="dashboard-charts" id="main-charts">
         <!-- Score Ring -->
         <div class="card score-ring-container" style="min-width:180px; justify-content:center;">
           <p style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">Eco Score</p>
@@ -110,14 +109,12 @@ export async function render(container) {
         <div class="skeleton skeleton-text" style="height:60px;border-radius:8px;"></div>
       </div>
 
-      <!-- Quick Log FAB -->
-      <button
-        id="quick-log-fab"
-        class="btn btn-primary"
-        aria-label="Log new activity"
-        style="position:fixed;bottom:calc(var(--nav-height)+20px);right:20px;width:56px;height:56px;border-radius:50%;padding:0;font-size:24px;box-shadow:var(--shadow-glow-lime);z-index:50;"
-      >➕</button>
     </div>
+    <button
+      id="quick-log-fab"
+      class="btn btn-primary"
+      aria-label="Log new activity"
+    >➕</button>
   `;
 
   // Wire period toggle
@@ -167,58 +164,96 @@ export async function render(container) {
       const userName = stats.profile?.display_name || 'Climate Champion';
       const scoreColor = stats.score >= 80 ? '#A3E635' : stats.score >= 60 ? '#FBBF24' : '#F87171';
       
+      // Get recent badges
+      const badgesUnlocked = Array.isArray(stats.profile?.badges) ? stats.profile.badges : [];
+      const recentBadges = badgesUnlocked.slice(-3).reverse().map(b => {
+        const badgeId = typeof b === 'string' ? b : (b.key || b.id);
+        return BADGES[badgeId];
+      }).filter(Boolean);
+
+      const badgesHtml = recentBadges.length > 0 ? `
+        <div style="margin-top: 30px; text-align: center;">
+          <p style="font-size:13px; color:#9ca3af; text-transform:uppercase; letter-spacing:1.5px; margin:0 0 16px 0;">Recent Achievements</p>
+          <div style="display:flex; justify-content:center; gap:24px;">
+            ${recentBadges.map(b => `
+              <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:16px; width:110px; text-align:center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                <div style="font-size:36px; margin-bottom:12px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${b.icon}</div>
+                <div style="font-size:12px; color:#d1d5db; font-weight:600; line-height:1.3;">${b.title}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+
       certNode.innerHTML = `
-        <div style="border: 2px solid rgba(163, 230, 53, 0.2); border-radius: 24px; padding: 40px; background: #0c140f;">
-          <!-- Header -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
-            <div style="display:flex; align-items:center; gap:8px; font-size:24px; font-weight:700;">
-              <span style="color:#A3E635;">🌿</span>
-              <span>Nature<span style="color:#A3E635;">Guard</span></span>
+        <div style="position: relative; overflow: hidden; border: 1px solid rgba(163, 230, 53, 0.25); border-radius: 32px; padding: 50px; background: rgba(255,255,255,0.02); backdrop-filter: blur(12px); box-shadow: inset 0 0 60px rgba(163, 230, 53, 0.05), 0 20px 40px rgba(0,0,0,0.4);">
+          <!-- Decorative Background Elements -->
+          <div style="position:absolute; top:-80px; right:-80px; width:250px; height:250px; background:radial-gradient(circle, rgba(163, 230, 53, 0.15) 0%, transparent 70%); border-radius:50%; z-index:0;"></div>
+          <div style="position:absolute; bottom:-100px; left:-80px; width:350px; height:350px; background:radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%); border-radius:50%; z-index:0;"></div>
+          
+          <div style="position: relative; z-index: 1;">
+            <!-- Header -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+              <div style="display:flex; align-items:center; gap:12px; font-size:28px; font-weight:800; letter-spacing:-0.5px;">
+                <span style="color: #A3E635;">🌿 NatureGuard</span>
+              </div>
+              <div style="font-size:12px; color:#9ca3af; font-family:'JetBrains Mono', monospace; border:1px solid rgba(255,255,255,0.1); padding:6px 14px; border-radius:999px; background:rgba(0,0,0,0.3); letter-spacing: 0.5px;">
+                VERIFIED ECO-REPORT
+              </div>
             </div>
-            <div style="font-size:14px; color:#9ca3af; font-family:'JetBrains Mono', monospace;">
-              OFFICIAL SUSTAINABILITY REPORT
-            </div>
-          </div>
 
-          <!-- Title -->
-          <div style="text-align:center; margin-bottom: 50px;">
-            <h1 style="font-size:42px; font-family:'DM Serif Display', serif; margin:0 0 8px 0; color:#A3E635;">Sustainability Certificate</h1>
-            <p style="font-size:18px; color:#d1d5db; margin:0;">Proudly awarded to <strong>${userName}</strong></p>
-          </div>
+            <!-- Title -->
+            <div style="text-align:center; margin-bottom: 50px;">
+              <h1 style="font-size:54px; font-family:'DM Serif Display', serif; margin:0 0 12px 0; color: #F4F9F5;">Sustainability Certificate</h1>
+              <p style="font-size:20px; color:#9ca3af; margin:0; font-weight:400;">Proudly awarded to <strong style="color:#A3E635; font-weight:600;">${userName}</strong></p>
+            </div>
 
-          <!-- Metrics Grid -->
-          <div style="display:flex; justify-content:space-between; margin-bottom:50px;">
-            <div style="flex:1; text-align:center;">
-              <p style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0;">Eco Score</p>
-              <div style="font-size:48px; font-family:'DM Serif Display', serif; color:${scoreColor}; line-height:1;">${stats.score}<span style="font-size:24px; color:#9ca3af;">/100</span></div>
-              <p style="font-size:16px; color:#d1d5db; margin:8px 0 0 0; font-weight:600;">Grade: ${stats.grade}</p>
+            <!-- Metrics Grid -->
+            <div style="display:flex; justify-content:space-between; margin-bottom:40px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 24px; padding: 32px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
+              <div style="flex:1; text-align:center;">
+                <p style="font-size:13px; color:#9ca3af; text-transform:uppercase; letter-spacing:1.5px; margin:0 0 12px 0;">Eco Score</p>
+                <div style="display:flex; align-items:baseline; justify-content:center; gap:4px;">
+                  <span style="font-size:56px; font-family:'DM Serif Display', serif; color:${scoreColor}; line-height:1;">${stats.score}</span>
+                  <span style="font-size:20px; color:#6b7280;">/100</span>
+                </div>
+                <div style="display:inline-block; margin-top:24px; padding:4px 16px; background:rgba(255,255,255,0.05); border-radius:999px; font-size:14px; color:#d1d5db; font-weight:600;">Grade: ${stats.grade}</div>
+              </div>
+              
+              <div style="width:1px; background:linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);"></div>
+              
+              <div style="flex:1; text-align:center;">
+                <p style="font-size:13px; color:#9ca3af; text-transform:uppercase; letter-spacing:1.5px; margin:0 0 12px 0;">Footprint</p>
+                <div style="display:flex; align-items:baseline; justify-content:center; gap:4px;">
+                  <span style="font-size:56px; font-family:'DM Serif Display', serif; color:#F4F9F5; line-height:1;">${stats.total.toFixed(1)}</span>
+                  <span style="font-size:20px; color:#6b7280;">kg</span>
+                </div>
+                <div style="display:inline-block; margin-top:24px; font-size:14px; color:#d1d5db;">This ${stats.period}</div>
+              </div>
+              
+              <div style="width:1px; background:linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);"></div>
+              
+              <div style="flex:1; text-align:center;">
+                <p style="font-size:13px; color:#9ca3af; text-transform:uppercase; letter-spacing:1.5px; margin:0 0 12px 0;">Streak</p>
+                <div style="display:flex; align-items:baseline; justify-content:center; gap:4px;">
+                  <span style="font-size:56px; font-family:'DM Serif Display', serif; color:#F59E0B; line-height:1;">${stats.profile?.current_streak || 0}</span>
+                </div>
+                <div style="display:inline-block; margin-top:24px; font-size:14px; color:#d1d5db; font-weight:600;">Days 🔥</div>
+              </div>
             </div>
-            
-            <div style="width:2px; background:rgba(255,255,255,0.1);"></div>
-            
-            <div style="flex:1; text-align:center;">
-              <p style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0;">Carbon Footprint</p>
-              <div style="font-size:48px; font-family:'DM Serif Display', serif; color:#F4F9F5; line-height:1;">${stats.total.toFixed(1)}<span style="font-size:24px; color:#9ca3af;">kg</span></div>
-              <p style="font-size:14px; color:#d1d5db; margin:8px 0 0 0;">Logged this ${stats.period}</p>
-            </div>
-            
-            <div style="width:2px; background:rgba(255,255,255,0.1);"></div>
-            
-            <div style="flex:1; text-align:center;">
-              <p style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0;">Current Streak</p>
-              <div style="font-size:48px; font-family:'DM Serif Display', serif; color:#F59E0B; line-height:1;">${stats.profile?.current_streak || 0}</div>
-              <p style="font-size:16px; color:#d1d5db; margin:8px 0 0 0; font-weight:600;">Days 🔥</p>
-            </div>
-          </div>
 
-          <!-- Footer Message -->
-          <div style="text-align:center; padding-top:30px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <p style="font-size:20px; font-style:italic; color:#A3E635; margin:0;">
-              "I'm taking action for the climate with NatureGuard!"
-            </p>
-            <p style="font-size:12px; color:#6b7280; margin:12px 0 0 0;">
-              Generated on ${new Date().toLocaleDateString()}
-            </p>
+            ${badgesHtml}
+
+            <!-- Footer Message -->
+            <div style="text-align:center; padding-top:30px; margin-top:40px; border-top: 1px solid rgba(255,255,255,0.05);">
+              <p style="font-size:22px; font-family:'DM Serif Display', serif; font-style:italic; color:#A3E635; margin:0 0 16px 0; letter-spacing: 0.5px;">
+                "Taking action for a greener tomorrow."
+              </p>
+              <div style="display:flex; align-items:center; justify-content:center; gap:12px;">
+                <span style="width:6px; height:6px; background:#A3E635; border-radius:50%; opacity:0.5;"></span>
+                <span style="font-size:12px; color:#6b7280; font-family:'JetBrains Mono', monospace; letter-spacing:1px;">GENERATED ${new Date().toLocaleDateString()}</span>
+                <span style="width:6px; height:6px; background:#A3E635; border-radius:50%; opacity:0.5;"></span>
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -604,8 +639,10 @@ function renderStreakCard(container, profile) {
   const badges  = profile?.badges          || [];
 
   // Build badge icons from defs (show which are earned vs locked)
-  const badgeHTML = BADGE_DEFS.map(def => {
-    const earned = badges.find(b => b.key === def.key);
+  console.log("DASHBOARD RENDER - profile.badges:", profile?.badges);
+  const badgeHTML = Object.values(BADGES).map(def => {
+    const earned = badges.find(b => typeof b === 'string' ? b === def.id : (b && (b.key === def.id || b.id === def.id)));
+    console.log("Badge def.id:", def.id, "earned:", !!earned);
     return `
       <div
         title="${def.title}: ${def.desc}"
