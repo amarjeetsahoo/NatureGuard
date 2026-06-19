@@ -236,6 +236,14 @@ function showProfileDialog(user) {
       <p style="font-size:13px; color:var(--text-secondary); margin-bottom:24px;">${email}</p>
       
       <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="mobile-profile-theme-switch" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.02); border-radius:var(--radius-md); border:1px solid var(--border-subtle); margin-bottom:8px;">
+          <span style="font-size:14px; color:var(--text-primary); font-weight:500;">Appearance</span>
+          <div class="theme-switch theme-toggle-btn profile-theme-btn" aria-label="Toggle Theme">
+            <div class="theme-switch-thumb">
+              <span class="theme-toggle-icon">☀️</span>
+            </div>
+          </div>
+        </div>
         <button id="open-settings-btn" class="btn btn-secondary btn-full">
           <span>⚙️</span> Settings
         </button>
@@ -247,6 +255,31 @@ function showProfileDialog(user) {
   `;
   
   document.body.appendChild(overlay);
+
+  // Set initial icon for the profile theme switch
+  const isLight = document.documentElement.classList.contains('theme-light');
+  const profileThemeIcon = overlay.querySelector('.profile-theme-btn .theme-toggle-icon');
+  if (profileThemeIcon) {
+    profileThemeIcon.innerHTML = isLight ? '🌙' : '☀️';
+  }
+
+  // Attach event listener to the new theme switch
+  const profileThemeBtn = overlay.querySelector('.profile-theme-btn');
+  if (profileThemeBtn) {
+    profileThemeBtn.addEventListener('click', () => {
+      const isCurrentlyLight = document.documentElement.classList.contains('theme-light');
+      if (isCurrentlyLight) {
+        document.documentElement.classList.remove('theme-light');
+        localStorage.setItem('natureguard-theme', 'dark');
+        document.querySelectorAll('.theme-toggle-icon').forEach(i => i.innerHTML = '☀️');
+      } else {
+        document.documentElement.classList.add('theme-light');
+        localStorage.setItem('natureguard-theme', 'light');
+        document.querySelectorAll('.theme-toggle-icon').forEach(i => i.innerHTML = '🌙');
+      }
+    });
+  }
+
   
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
