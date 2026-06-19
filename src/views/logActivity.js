@@ -9,6 +9,7 @@ import {
 } from '../modules/calculator.js';
 import { formatCO2, humanize } from '../modules/humanizer.js';
 import { saveActivity, saveActivities, getActivities, deleteActivity, getProfile } from '../modules/db.js';
+import { escapeHTML } from '../utils/dom.js';
 import { toastSuccess, toastError, toastInfo } from '../utils/toast.js';
 import { eventBus, EVENTS } from '../modules/eventBus.js';
 import { router } from '../router.js';
@@ -35,16 +36,16 @@ export async function render(container) {
 
   container.innerHTML = `
     <div class="view" id="log-view">
-      <h1 class="view-title" style="margin-bottom:20px;">Log Activity</h1>
+      <h1 class="view-title mb-6">Log Activity</h1>
 
       <!-- AI Natural Language Input -->
       <div class="nl-input-section animate-fadeInUp" id="nl-section" style="animation-delay:0ms;">
-        <div class="nl-input-label">
+        <div class="nl-input-label flex items-center gap-2 mb-3">
           <span>🤖</span>
           <span>Describe your day to AI</span>
           <span class="badge badge-teal" style="margin-left:auto;font-size:10px;">AI</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div class="flex items-start gap-2">
           <textarea
             id="nl-input"
             class="input textarea"
@@ -54,9 +55,9 @@ export async function render(container) {
             aria-label="Describe your activities in plain English"
           ></textarea>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-          <span id="voice-status" style="font-size:11px;color:var(--text-muted);">Powered by Gemini AI · Requires API key in Settings</span>
-          <div style="display:flex;gap:8px;align-items:center;">
+        <div class="flex items-center justify-between mt-2">
+          <span id="voice-status" class="text-xs text-muted">Powered by Gemini AI · Requires API key in Settings</span>
+          <div class="flex items-center gap-2">
             <button
               id="voice-btn"
               type="button"
@@ -84,8 +85,8 @@ export async function render(container) {
       <div id="nl-results" hidden style="margin-bottom:20px;"></div>
 
       <!-- Manual Category Selector -->
-      <div style="margin-bottom:20px;">
-        <p style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;">
+      <div class="mb-6">
+        <p class="text-sm font-semibold text-muted mb-3" style="text-transform:uppercase;letter-spacing:.05em;">
           Or log manually
         </p>
         <div class="category-tiles" role="group" aria-label="Select activity category">
@@ -104,7 +105,7 @@ export async function render(container) {
       </div>
 
       <!-- Input Form (shown after category selection) -->
-      <div id="activity-form" hidden class="card animate-fadeInUp" style="margin-bottom:20px;"></div>
+      <div id="activity-form" hidden class="card animate-fadeInUp mb-6"></div>
 
       <!-- CO₂ Preview -->
       <div id="co2-preview" hidden class="co2-preview animate-fadeInScale" aria-live="polite">
@@ -117,14 +118,14 @@ export async function render(container) {
       </div>
 
       <!-- Recent Activities -->
-      <div style="margin-top:32px;">
-        <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">Recent</h2>
+      <div class="mt-6">
+        <h2 class="font-semibold mb-4" style="font-size:15px;">Recent</h2>
         <div id="recent-list">
-          <div class="skeleton skeleton-text" style="height:48px;border-radius:12px;margin-bottom:8px;"></div>
-          <div class="skeleton skeleton-text" style="height:48px;border-radius:12px;margin-bottom:8px;"></div>
+          <div class="skeleton skeleton-text mb-2" style="height:48px;border-radius:12px;"></div>
+          <div class="skeleton skeleton-text mb-2" style="height:48px;border-radius:12px;"></div>
           <div class="skeleton skeleton-text" style="height:48px;border-radius:12px;"></div>
         </div>
-        <button id="recent-load-more" class="btn btn-secondary btn-sm" style="width:100%; display:none; margin-top:8px;">Load More</button>
+        <button id="recent-load-more" class="btn btn-secondary btn-sm w-full mt-2" style="display:none;">Load More</button>
       </div>
     </div>
   `;
@@ -570,15 +571,15 @@ async function loadRecentActivities(container, append = false) {
   const catIcons = { transport:'🚗', food:'🍔', energy:'⚡', shopping:'🛍️', travel:'✈️', other: '✨' };
 
   const html = activities.map(a => `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--glass-bg);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:8px;" data-id="${a.id}">
-      <span style="font-size:20px;">${catIcons[a.category] || '✨'}</span>
-      <div style="flex:1;min-width:0;">
-        <p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.activity}</p>
-        <p style="font-size:11px;color:var(--text-muted);">${new Date(a.logged_at).toLocaleDateString('en', { weekday:'short', hour:'2-digit', minute:'2-digit' })}</p>
+    <div class="flex items-center gap-3 p-3 mb-2" style="background:var(--glass-bg);border:1px solid var(--border-subtle);border-radius:12px;" data-id="${a.id}">
+      <span class="text-xl">${catIcons[a.category] || '✨'}</span>
+      <div class="flex-1" style="min-width:0;">
+        <p class="text-sm font-semibold" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(a.activity)}</p>
+        <p class="text-xs text-muted">${new Date(a.logged_at).toLocaleDateString('en', { weekday:'short', hour:'2-digit', minute:'2-digit' })}</p>
       </div>
-      <div style="text-align:right;">
-        <p style="font-size:13px;font-weight:600;color:var(--accent-lime);">${formatCO2(a.co2_kg)}</p>
-        <button class="delete-btn" data-id="${a.id}" aria-label="Delete activity" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:2px;">✕</button>
+      <div class="text-right">
+        <p class="text-sm font-bold text-accent">${formatCO2(a.co2_kg)}</p>
+        <button class="delete-btn p-1 text-xs text-muted bg-none border-none cursor-pointer" data-id="${a.id}" aria-label="Delete activity">✕</button>
       </div>
     </div>
   `).join('');

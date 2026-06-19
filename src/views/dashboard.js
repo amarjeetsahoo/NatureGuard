@@ -9,6 +9,7 @@ import {
 } from '../modules/calculator.js';
 import { calculateScore, getGrade, getScoreColor, ringOffset, getScoreLabel } from '../modules/score.js';
 import { formatCO2, humanize, treesEquivalent } from '../modules/humanizer.js';
+import { escapeHTML } from '../utils/dom.js';
 import { router } from '../router.js';
 import { BADGES } from '../modules/rewards.js';
 import { eventBus, EVENTS } from '../modules/eventBus.js';
@@ -49,8 +50,8 @@ export async function render(container) {
       <!-- Score Ring + Main Chart -->
       <div class="dashboard-charts" id="main-charts">
         <!-- Score Ring -->
-        <div class="card score-ring-container" style="min-width:180px; justify-content:center;">
-          <p style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">Eco Score</p>
+        <div class="card score-ring-container text-center flex-col justify-center items-center" style="min-width:180px;">
+          <p class="text-xs font-semibold text-muted" style="text-transform:uppercase;letter-spacing:.05em;">Eco Score</p>
           <div class="score-ring-wrap" id="score-ring-wrap">
             <svg width="100%" height="100%" viewBox="0 0 140 140" aria-hidden="true">
               <circle cx="70" cy="70" r="45" fill="none" stroke="var(--bg-elevated)" stroke-width="10"/>
@@ -71,22 +72,22 @@ export async function render(container) {
               <span class="score-grade"  id="score-grade">—</span>
             </div>
           </div>
-          <p id="score-label" style="font-size:12px;color:var(--text-muted);text-align:center;max-width:140px;">—</p>
+          <p id="score-label" class="text-xs text-muted text-center" style="max-width:140px;">—</p>
         </div>
 
         <!-- Category Donut -->
-        <div class="card chart-card" style="padding:20px; display:flex; flex-direction:column;">
+        <div class="card chart-card p-4 flex flex-col">
           <div class="chart-card-header">
             <h2 class="chart-card-title">By Category</h2>
           </div>
           <div style="position:relative; width:100%; height:230px; margin:auto 0;">
-            <div id="donut-chart" style="width:100%; height:100%;"></div>
+            <div id="donut-chart" class="w-full h-full"></div>
           </div>
         </div>
       </div>
 
       <!-- Weekly Trend -->
-      <div class="card chart-card" style="margin-bottom:16px;">
+      <div class="card chart-card mb-4">
         <div class="chart-card-header">
           <h2 class="chart-card-title">Daily Trend</h2>
           <span id="trend-delta" class="badge badge-lime">—</span>
@@ -95,9 +96,9 @@ export async function render(container) {
       </div>
 
       <!-- Breakdown list -->
-      <div class="card" style="margin-bottom:16px;">
-        <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">Category Breakdown</h2>
-        <div id="breakdown-list" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card mb-4">
+        <h2 class="font-semibold mb-4" style="font-size:15px;">Category Breakdown</h2>
+        <div id="breakdown-list" class="flex flex-col gap-3">
           <div class="skeleton skeleton-text" style="height:40px;border-radius:8px;"></div>
           <div class="skeleton skeleton-text" style="height:40px;border-radius:8px;"></div>
           <div class="skeleton skeleton-text" style="height:40px;border-radius:8px;"></div>
@@ -105,7 +106,7 @@ export async function render(container) {
       </div>
 
       <!-- Streak & Badges -->
-      <div class="card" id="streak-card" style="margin-bottom:16px;">
+      <div class="card mb-4" id="streak-card">
         <div class="skeleton skeleton-text" style="height:60px;border-radius:8px;"></div>
       </div>
 
@@ -161,7 +162,7 @@ export async function render(container) {
       certNode.style.padding = '60px';
       certNode.style.boxSizing = 'border-box';
       
-      const userName = stats.profile?.display_name || 'Climate Champion';
+      const userName = escapeHTML(stats.profile?.display_name || 'Climate Champion');
       const scoreColor = stats.score >= 80 ? '#A3E635' : stats.score >= 60 ? '#FBBF24' : '#F87171';
       
       // Get recent badges
@@ -404,7 +405,7 @@ function renderStats(container, { total, score, vsAvg, benchmark, period, comps,
   container.querySelector('#stats-grid').innerHTML = `
     <div class="card stat-card animate-fadeInUp">
       <span class="stat-label">${periodLabel} CO₂</span>
-      <div style="display:flex;align-items:baseline;gap:4px;">
+      <div class="flex items-baseline gap-1">
         <span class="stat-value">${formatCO2(total).split(' ')[0]}</span>
         <span class="stat-unit">${formatCO2(total).split(' ')[1] || 'kg'}</span>
       </div>
@@ -415,22 +416,22 @@ function renderStats(container, { total, score, vsAvg, benchmark, period, comps,
 
     <div class="card stat-card animate-fadeInUp" style="animation-delay:80ms;">
       <span class="stat-label">Eco Score</span>
-      <div style="display:flex;align-items:baseline;gap:4px;">
+      <div class="flex items-baseline gap-1">
         <span class="stat-value" style="color:${getScoreColor(score)};">${score}</span>
         <span class="stat-unit">/ 100</span>
       </div>
-      <span style="font-size:11px;color:var(--text-muted);">${getGrade(score)} grade</span>
+      <span class="text-xs text-muted">${getGrade(score)} grade</span>
     </div>
 
     <div class="card stat-card animate-fadeInUp" style="animation-delay:160ms;">
       <span class="stat-label">Activities</span>
       <span class="stat-value">${activities.length}</span>
-      <span style="font-size:11px;color:var(--text-muted);">logged ${period === 'today' ? 'today' : `this ${period}`}</span>
+      <span class="text-xs text-muted">logged ${period === 'today' ? 'today' : `this ${period}`}</span>
     </div>
 
     <div class="card stat-card animate-fadeInUp" style="animation-delay:240ms;">
       <span class="stat-label">Equivalent to</span>
-      <span style="font-size:13px;font-weight:500;color:var(--text-primary);margin-top:4px;">
+      <span class="text-sm font-semibold text-primary mt-1">
         ${comps[0]?.icon} ${comps[0]?.text || '—'}
       </span>
     </div>
@@ -601,18 +602,18 @@ function renderBreakdown(container, breakdown, total) {
     const meta = CATEGORY_META[cat];
     const pct = total > 0 ? (val / total) * 100 : 0;
     return `
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div class="flex items-center gap-3">
         <div class="category-icon cat-${cat}">${meta.icon}</div>
-        <div style="flex:1;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;">${meta.label}</span>
-            <span style="font-size:13px;color:var(--text-secondary);">${formatCO2(val)}</span>
+        <div class="flex-1">
+          <div class="flex justify-between mb-1">
+            <span class="text-sm font-semibold">${meta.label}</span>
+            <span class="text-sm text-secondary">${formatCO2(val)}</span>
           </div>
           <div class="progress-bar">
             <div class="progress-bar-fill" style="width:${pct}%;background:${meta.color};"></div>
           </div>
         </div>
-        <span style="font-size:11px;color:var(--text-muted);min-width:36px;text-align:right;">${pct.toFixed(0)}%</span>
+        <span class="text-xs text-muted text-right" style="min-width:36px;">${pct.toFixed(0)}%</span>
       </div>
     `;
   }).join('');
