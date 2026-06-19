@@ -8,6 +8,7 @@ import { showLoader, hideLoader } from './utils/loader.js';
 
 // Lazy-load view modules for efficiency
 const routes = {
+  '':            () => import('./views/landing.js'),
   '#landing':    () => import('./views/landing.js'),
   '#auth':       () => import('./views/auth.js'),
   '#dashboard':  () => import('./views/dashboard.js'),
@@ -31,8 +32,8 @@ export const router = {
   currentRoute: null,
 
   async navigate(hash) {
-    let route = hash.split('?')[0] || '#landing';
-
+    let route = hash?.split('?')[0] || '';
+    
     // Auth guard for private routes
     if (privateRoutes.has(route)) {
       const allowed = await authGuard(route);
@@ -43,14 +44,18 @@ export const router = {
         route = '#404';
     }
 
-    const loader = routes[route] || routes['#landing'];
+    const loader = routes[route] || routes[''];
 
     try {
       showLoader(); // Show leaf loader while downloading bundle and preparing view
       
       const { render } = await loader();
       this.currentRoute = route;
-      location.hash = route;
+      if (route === '' || route === '#landing') {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      } else {
+        location.hash = route;
+      }
 
       // Clear and render new view
       main.innerHTML = '';

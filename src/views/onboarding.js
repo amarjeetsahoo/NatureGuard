@@ -41,7 +41,7 @@ export async function render(container) {
           <button type="submit" class="btn btn-primary" id="ob-send-btn">Send</button>
         </form>
         <div style="text-align:center; margin-top:12px;">
-          <button class="btn" style="background:transparent; color:var(--text-muted); font-size:13px; padding:0;" id="ob-skip-btn">Skip Onboarding</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="ob-skip-btn">Skip Onboarding</button>
         </div>
       </div>
     </div>

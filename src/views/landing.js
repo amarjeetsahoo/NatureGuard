@@ -45,7 +45,7 @@ export async function render(container) {
         </div>
 
         <!-- Social proof -->
-        <p style="margin-top:32px;font-size:13px;color:var(--text-muted);" class="animate-fadeIn" style="animation-delay:500ms;">
+        <p style="margin-top:32px; font-size:13px; color:var(--text-muted); animation-delay:500ms;" class="animate-fadeIn">
           Free forever · No credit card · Your data stays private
         </p>
       </section>

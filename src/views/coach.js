@@ -22,7 +22,7 @@ export async function render(container) {
   const isReady = geminiService.isReady();
 
   container.innerHTML = `
-    <div class="view" id="coach-view" style="display:flex; flex-direction:column; padding-bottom:calc(var(--nav-height) + 16px); height: 100dvh;">
+    <div class="view" id="coach-view" style="display:flex; flex-direction:column; padding-bottom:calc(var(--nav-height, 64px) + 16px + env(safe-area-inset-bottom, 0px)); height: 100dvh;">
       <header class="view-header" style="flex-shrink:0;">
         <h1 class="view-title">AI Carbon Coach</h1>
         <p style="font-size:13px; color:var(--text-muted);">Personalized insights based on your logged data</p>
@@ -48,11 +48,9 @@ export async function render(container) {
 
           <div class="chat-input-area" style="flex-shrink:0; background:var(--bg-base); padding-top:12px;">
             
-            ${chatHistory.length === 0 ? `
-              <div class="suggestion-chips scroll-hide" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:12px;">
-                ${SUGGESTIONS.map(s => `<button class="chip suggestion-chip" type="button" style="white-space:nowrap;">${s}</button>`).join('')}
-              </div>
-            ` : ''}
+            <div id="suggestion-container" class="suggestion-chips scroll-hide" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:12px;" ${chatHistory.length > 0 ? 'hidden' : ''}>
+              ${(chatHistory.length === 0 ? SUGGESTIONS : []).map(s => `<button class="chip suggestion-chip" type="button" style="white-space:nowrap;">${s}</button>`).join('')}
+            </div>
 
             <form id="chat-form" style="display:flex; gap:8px; width:100%;">
               <input type="text" id="chat-input" class="input" placeholder="Ask your coach..." autocomplete="off" style="flex:1;" />
@@ -92,7 +90,6 @@ function setupChatLogic(container) {
     chip.addEventListener('click', () => {
       input.value = chip.textContent;
       form.dispatchEvent(new Event('submit'));
-      container.querySelector('.suggestion-chips')?.remove();
     });
   });
 
@@ -104,9 +101,17 @@ function setupChatLogic(container) {
         <div class="chat-bubble ai animate-fadeInUp">Cleared history. How can I help you now?</div>
       </div>
       <div class="chat-input-area" style="flex-shrink:0; background:var(--bg-base); padding-top:12px;">
+        <div id="suggestion-container" class="suggestion-chips scroll-hide" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:12px;">
+          ${SUGGESTIONS.map(s => `<button class="chip suggestion-chip" type="button" style="white-space:nowrap;">${s}</button>`).join('')}
+        </div>
         <form id="chat-form" style="display:flex; gap:8px; width:100%;">
           <input type="text" id="chat-input" class="input" placeholder="Ask your coach..." autocomplete="off" style="flex:1;" />
-          <button type="submit" id="chat-submit" class="btn btn-teal" aria-label="Send message" style="padding:0 16px;">➤</button>
+          <button type="submit" id="chat-submit" class="btn btn-teal" aria-label="Send message" style="padding:0 16px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
         </form>
       </div>
     `;
@@ -120,6 +125,8 @@ function setupChatLogic(container) {
 
     input.value = '';
     submitBtn.disabled = true;
+    const chipsContainer = container.querySelector('#suggestion-container');
+    if (chipsContainer) chipsContainer.hidden = true;
 
     // Add user message to UI
     messagesEl.insertAdjacentHTML('beforeend', renderBubble('user', text));
@@ -149,9 +156,30 @@ function setupChatLogic(container) {
       streamBubble.querySelector('.typing-cursor')?.remove();
       streamBubble.removeAttribute('id');
 
+      let finalResponse = fullResponse;
+      const suggestionsMatch = fullResponse.match(/---SUGGESTIONS---[\s\S]*/);
+      if (suggestionsMatch) {
+        finalResponse = fullResponse.slice(0, suggestionsMatch.index).trim();
+        streamContent.innerHTML = formatMarkdown(finalResponse);
+        
+        const suggestionsLines = suggestionsMatch[0].replace('---SUGGESTIONS---', '').split('\n');
+        const suggestions = suggestionsLines.map(s => s.trim().replace(/^[-\*]\s*/, '').replace(/^\d+\.\s*/, '')).filter(s => s.length > 0);
+        
+        if (suggestions.length > 0 && chipsContainer) {
+          chipsContainer.innerHTML = suggestions.map(s => `<button class="chip suggestion-chip" type="button" style="white-space:nowrap;">${s}</button>`).join('');
+          chipsContainer.hidden = false;
+          chipsContainer.querySelectorAll('.suggestion-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+              input.value = chip.textContent;
+              form.dispatchEvent(new Event('submit'));
+            });
+          });
+        }
+      }
+
       // Update history state
       chatHistory.push({ role: 'user', parts: [{ text }] });
-      chatHistory.push({ role: 'model', parts: [{ text: fullResponse }] });
+      chatHistory.push({ role: 'model', parts: [{ text: finalResponse }] });
 
     } catch (err) {
       console.error(err);

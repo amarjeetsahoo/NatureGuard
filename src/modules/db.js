@@ -60,9 +60,9 @@ export async function saveActivity(activity) {
   }).select().single();
 
   if (!res.error) {
-    updateStreakOnLog();
-    awardPoints(10, 'Activity logged');
-    checkBadges('activity', { category: activity.category });
+    await updateStreakOnLog();
+    await awardPoints(10, 'Activity logged');
+    await checkBadges('activity', { category: activity.category });
   }
 
   return res;
@@ -85,9 +85,11 @@ export async function saveActivities(activities) {
   const res = await supabase.from('activities').insert(rows).select();
 
   if (!res.error && activities.length > 0) {
-    updateStreakOnLog();
-    awardPoints(10 * activities.length, `${activities.length} activities logged`);
-    activities.forEach(a => checkBadges('activity', { category: a.category }));
+    await updateStreakOnLog();
+    await awardPoints(10 * activities.length, `${activities.length} activities logged`);
+    for (const a of activities) {
+      await checkBadges('activity', { category: a.category });
+    }
   }
 
   return res;

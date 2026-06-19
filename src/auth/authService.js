@@ -28,7 +28,12 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${location.origin}/#dashboard`,
+      // Redirect to the app root — main.js onAuthChange will route to dashboard/onboarding
+      redirectTo: `${location.origin}/`,
+      queryParams: {
+        access_type: 'offline',  // Request a refresh token
+        prompt: 'consent',       // Always show consent screen to ensure we get refresh token
+      },
     },
   });
   return { data, error };
@@ -39,6 +44,22 @@ export async function signInWithMagicLink(email) {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: `${location.origin}/#dashboard` },
+  });
+  return { data, error };
+}
+
+/** Send a password reset email */
+export async function resetPasswordForEmail(email) {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin,
+  });
+  return { data, error };
+}
+
+/** Update an authenticated user's password */
+export async function updateUserPassword(newPassword) {
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword
   });
   return { data, error };
 }
