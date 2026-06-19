@@ -28,7 +28,9 @@ Users log everyday activities — commuting, shopping, eating, travelling — an
 
 ## 🎬 Demo
 
-> *[Add your E2E demo video/GIF link here after recording]*
+![NatureGuard E2E Desktop Demo](e2e_desktop_test_1781859965084.webp)
+
+> Full desktop E2E walkthrough — login through all app features, validated and functional.
 
 A full end-to-end walkthrough covers:
 - **Sign-in → Dashboard** — session restoration, onboarding for new Google OAuth users
